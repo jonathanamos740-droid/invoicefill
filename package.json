@@ -3,7 +3,6 @@
   "version": "1.0.0",
   "dependencies": {
     "formidable": "^3.5.4",
-    "node-fetch": "^2.7.0",
-    "pdf-parse": "^2.4.5"
+    "node-fetch": "^2.7.0"
   }
 }

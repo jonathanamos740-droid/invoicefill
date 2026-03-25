@@ -1,6 +1,5 @@
 import formidable from "formidable";
 import fs from "fs";
-import pdfParse from "pdf-parse";
 
 export const config = {
   api: {
@@ -54,28 +53,12 @@ export default async function handler(req, res) {
       extractedText = fileBuffer.toString("utf-8");
       console.log("Text file loaded, length:", extractedText.length);
     }
-    // ---------- PDF ----------
-    else if (fileType.includes("pdf") || fileExt === "pdf") {
-      // First try to extract text with pdf-parse
-      try {
-        const pdfData = await pdfParse(fileBuffer);
-        extractedText = pdfData.text;
-        console.log("pdf-parse extracted text length:", extractedText.length);
-      } catch (e) {
-        console.warn("pdf-parse failed:", e.message);
-        extractedText = "";
-      }
-
-      // If extracted text is too short, fallback to OCR.space
-      if (!extractedText || extractedText.trim().length < 50) {
-        console.log("PDF text too short, using OCR.space");
-        extractedText = await ocrSpace(fileBuffer, fileExt, fileType);
-        console.log("OCR.space extracted text length:", extractedText.length);
-      }
-    }
-    // ---------- IMAGE ----------
-    else if (fileType.includes("image") || ["jpg", "jpeg", "png"].includes(fileExt)) {
-      console.log("Processing image with OCR.space");
+    // ---------- PDF OR IMAGE ----------
+    else if (
+      fileType.includes("pdf") || fileExt === "pdf" ||
+      fileType.includes("image") || ["jpg", "jpeg", "png"].includes(fileExt)
+    ) {
+      console.log("Processing file with OCR.space");
       extractedText = await ocrSpace(fileBuffer, fileExt, fileType);
       console.log("OCR.space extracted text length:", extractedText.length);
     }
@@ -174,7 +157,7 @@ ${extractedText}`;
 }
 
 // ------------------------------------------------------------------
-//  OCR.space API with base64 for images and file upload for PDFs
+//  OCR.space API (works for both images and PDFs)
 // ------------------------------------------------------------------
 async function ocrSpace(fileBuffer, fileExt, mimeType) {
   const formData = new FormData();
