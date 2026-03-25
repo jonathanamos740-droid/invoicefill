@@ -6,7 +6,6 @@
   <title>InvoiceFill — AI Invoice Generator</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
-  <!-- PDF.js for reading PDFs client-side -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -60,6 +59,7 @@
     .mode-btn {
       flex: 1; padding: 11px 16px; background: transparent; border: none; border-radius: 10px;
       color: #6b6b8a; font-size: 12px; cursor: pointer; transition: all .2s;
+      display: flex; align-items: center; justify-content: center; gap: 8px;
     }
     .mode-btn.active { background: linear-gradient(135deg,#6c63ff,#8b5cf6); color: #fff; font-weight: 600; }
     @media(max-width:640px) { .mode-btn { padding: 10px 8px; font-size: 11px; } }
@@ -142,9 +142,10 @@
       display: flex; align-items: flex-start; gap: 9px; margin-bottom: 14px;
     }
 
-    /* Mobile item cards */
     .item-card { background: #13131a; border: 1px solid #2a2a3d; border-radius: 12px; padding: 14px; margin-bottom: 10px; }
     .item-g2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+    svg.icon { display: inline-block; vertical-align: middle; flex-shrink: 0; }
   </style>
 </head>
 <body>
@@ -158,7 +159,10 @@
   <!-- Header -->
   <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:52px;">
     <div style="display:flex;align-items:center;gap:11px;">
-      <div style="width:40px;height:40px;border-radius:10px;background:linear-gradient(135deg,#6c63ff,#ff6584);display:flex;align-items:center;justify-content:center;font-size:19px;">📄</div>
+      <div style="width:40px;height:40px;border-radius:10px;background:linear-gradient(135deg,#6c63ff,#ff6584);display:flex;align-items:center;justify-content:center;">
+        <!-- FileText icon -->
+        <svg class="icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+      </div>
       <span style="font-family:'Syne',sans-serif;font-weight:800;font-size:22px;letter-spacing:-.5px;">Invoice<span style="color:#6c63ff;">Fill</span></span>
     </div>
     <div style="font-size:10px;letter-spacing:1px;text-transform:uppercase;padding:4px 12px;border-radius:20px;background:rgba(108,99,255,.14);border:1px solid rgba(108,99,255,.3);color:#6c63ff;">AI-Powered</div>
@@ -174,24 +178,41 @@
 
   <!-- Mode Toggle -->
   <div style="display:flex;gap:4px;background:#13131a;border:1px solid #2a2a3d;border-radius:14px;padding:4px;margin-bottom:28px;">
-    <button class="mode-btn active" id="btn-full" onclick="switchMode('full')">✨ Fill New Invoice</button>
-    <button class="mode-btn" id="btn-dateOnly" onclick="switchMode('dateOnly')">📅 Change Date Only</button>
+    <button class="mode-btn active" id="btn-full" onclick="switchMode('full')">
+      <!-- Sparkles icon -->
+      <svg class="icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3L9.5 9.5 3 12l6.5 2.5L12 21l2.5-6.5L21 12l-6.5-2.5L12 3z"/></svg>
+      Fill New Invoice
+    </button>
+    <button class="mode-btn" id="btn-dateOnly" onclick="switchMode('dateOnly')">
+      <!-- Calendar icon -->
+      <svg class="icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+      Change Date Only
+    </button>
   </div>
 
   <!-- Steps -->
-  <div style="display:flex;align-items:center;background:#13131a;border:1px solid #2a2a3d;border-radius:14px;padding:15px 22px;margin-bottom:32px;" id="steps-bar">
-    <!-- rendered by JS -->
-  </div>
+  <div style="display:flex;align-items:center;background:#13131a;border:1px solid #2a2a3d;border-radius:14px;padding:15px 22px;margin-bottom:32px;" id="steps-bar"></div>
 
   <!-- Result -->
   <div id="result-section" style="display:none;" class="fade-up">
     <div style="background:#13131a;border:1px solid rgba(67,233,123,.3);border-radius:20px;padding:40px 32px;text-align:center;">
-      <div style="font-size:56px;margin-bottom:14px;">🎉</div>
+      <div style="display:flex;justify-content:center;margin-bottom:14px;">
+        <!-- CheckCircle icon -->
+        <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="#43e97b" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+      </div>
       <div style="font-family:'Syne',sans-serif;font-weight:800;font-size:30px;color:#43e97b;margin-bottom:8px;letter-spacing:-.5px;">Invoice Ready!</div>
       <p style="color:#6b6b8a;font-size:13px;margin-bottom:28px;line-height:1.6;">Download below. Open in browser → Ctrl+P → Save as PDF.</p>
       <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;">
-        <a class="dl-btn" id="dl-link" href="#" download="invoice.html">⬇ Download Invoice</a>
-        <button onclick="resetAll()" style="display:inline-flex;align-items:center;gap:8px;padding:14px 22px;background:none;border:1px solid #2a2a3d;color:#6b6b8a;border-radius:10px;font-size:12px;cursor:pointer;">↺ Fill Another</button>
+        <a class="dl-btn" id="dl-link" href="#" download="invoice.html">
+          <!-- Download icon -->
+          <svg class="icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Download Invoice
+        </a>
+        <button onclick="resetAll()" style="display:inline-flex;align-items:center;gap:8px;padding:14px 22px;background:none;border:1px solid #2a2a3d;color:#6b6b8a;border-radius:10px;font-size:12px;cursor:pointer;">
+          <!-- RotateCcw icon -->
+          <svg class="icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.5"/></svg>
+          Fill Another
+        </button>
       </div>
     </div>
   </div>
@@ -211,21 +232,34 @@
       ondragover="event.preventDefault();this.classList.add('drag')"
       ondragleave="this.classList.remove('drag')"
       ondrop="event.preventDefault();this.classList.remove('drag');handleFile(event.dataTransfer.files[0])">
-      <div style="font-size:44px;margin-bottom:12px;">📂</div>
+      <div style="display:flex;justify-content:center;margin-bottom:12px;">
+        <!-- FolderOpen icon -->
+        <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="#6c63ff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/><polyline points="12 11 12 17"/><polyline points="9 14 12 17 15 14"/></svg>
+      </div>
       <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:18px;margin-bottom:8px;" id="upload-title">Drop your blank invoice template</div>
       <div style="color:#6b6b8a;font-size:12px;margin-bottom:18px;line-height:1.7;" id="upload-sub">Optional — skip to generate from scratch<br/>.docx · .pdf · .txt</div>
-      <div class="choose-btn" onclick="event.stopPropagation();document.getElementById('file-input').click()">⬆ Choose File</div>
+      <div class="choose-btn" onclick="event.stopPropagation();document.getElementById('file-input').click()">
+        <!-- Upload icon -->
+        <svg class="icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/></svg>
+        Choose File
+      </div>
       <input type="file" id="file-input" accept=".pdf,.docx,.txt" style="display:none" onchange="handleFile(this.files[0])" />
     </div>
 
     <!-- File pill -->
     <div class="file-pill" id="file-pill" style="display:none;">
-      <div style="width:40px;height:40px;flex-shrink:0;border-radius:10px;font-size:19px;background:rgba(67,233,123,.1);display:flex;align-items:center;justify-content:center;">📄</div>
+      <div style="width:40px;height:40px;flex-shrink:0;border-radius:10px;background:rgba(67,233,123,.1);display:flex;align-items:center;justify-content:center;">
+        <!-- File icon -->
+        <svg class="icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#43e97b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/></svg>
+      </div>
       <div style="flex:1;min-width:0;">
         <div style="font-family:'Syne',sans-serif;font-weight:600;font-size:13px;color:#43e97b;margin-bottom:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" id="file-name"></div>
         <div style="font-size:11px;color:#6b6b8a;" id="file-size"></div>
       </div>
-      <button class="rm-btn" onclick="removeFile()" style="width:32px;height:32px;">✕</button>
+      <button class="rm-btn" onclick="removeFile()" style="width:32px;height:32px;">
+        <!-- X icon -->
+        <svg class="icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
     </div>
 
     <!-- Info -->
@@ -293,7 +327,11 @@
         <div id="items-list-mobile"></div>
       </div>
 
-      <button class="add-item-btn" onclick="addItem()">+ Add Item</button>
+      <button class="add-item-btn" onclick="addItem()">
+        <!-- Plus icon -->
+        <svg class="icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Add Item
+      </button>
 
       <!-- Totals -->
       <div class="totals-box">
@@ -333,26 +371,31 @@
 
     <!-- Error + Generate -->
     <div style="margin-top:28px;">
-      <div class="err-box" id="error-box" style="display:none;"><span>⚠</span><span id="error-msg"></span></div>
-      <button class="gen-btn" id="gen-btn" onclick="generate()">✨ Generate Filled Invoice</button>
+      <div class="err-box" id="error-box" style="display:none;">
+        <!-- AlertTriangle icon -->
+        <svg class="icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;margin-top:1px;"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        <span id="error-msg"></span>
+      </div>
+      <button class="gen-btn" id="gen-btn" onclick="generate()">
+        <!-- Zap icon -->
+        <svg class="icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+        Generate Filled Invoice
+      </button>
     </div>
 
   </div><!-- /form-section -->
 </div><!-- /wrap -->
 
 <script>
-// ── PDF.js setup ──────────────────────────────────────────────────────────────
 pdfjsLib.GlobalWorkerOptions.workerSrc =
   "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
 
-// ── State ─────────────────────────────────────────────────────────────────────
 let mode = "full";
 let currentFile = null;
 let items = [{ id: 1, desc: "", qty: 1, price: 0 }];
 let itemIdCounter = 2;
 const isMobile = () => window.innerWidth < 640;
 
-// ── Currency helpers ──────────────────────────────────────────────────────────
 const CURRENCY_NAMES = {
   NGN:["Naira","Kobo"], USD:["Dollar","Cent"], GBP:["Pound","Penny"],
   EUR:["Euro","Cent"],  GHS:["Cedi","Pesewa"], KES:["Shilling","Cent"], ZAR:["Rand","Cent"],
@@ -388,7 +431,6 @@ function todayStr() { return new Date().toISOString().split("T")[0]; }
 function plus30()   { const d=new Date(); d.setDate(d.getDate()+30); return d.toISOString().split("T")[0]; }
 function randInv()  { return "INV-"+new Date().getFullYear()+"-"+String(Math.floor(Math.random()*900)+100); }
 
-// ── Init ──────────────────────────────────────────────────────────────────────
 document.getElementById("inv-num").value  = randInv();
 document.getElementById("inv-date").value = todayStr();
 document.getElementById("inv-due").value  = plus30();
@@ -403,7 +445,6 @@ function checkMobile() {
   document.getElementById("items-mobile").style.display  = isMobile() ? "block" : "none";
 }
 
-// ── Steps ─────────────────────────────────────────────────────────────────────
 function renderSteps(step) {
   const labels = ["Upload","Fill","Download"];
   const bar = document.getElementById("steps-bar");
@@ -413,18 +454,18 @@ function renderSteps(step) {
     const bg = done ? "#43e97b" : active ? "#6c63ff" : "transparent";
     const border = done ? "#43e97b" : active ? "#6c63ff" : "#2a2a3d";
     const color = done ? "#000" : active ? "#fff" : "#6b6b8a";
+    const checkIcon = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`;
     const sep = i < 2 ? `<div style="flex:.5;height:1px;background:#2a2a3d;margin:0 5px;"></div>` : "";
     return `
       <div style="display:flex;align-items:center;flex:1;opacity:${opacity};transition:opacity .3s;">
         <div style="display:flex;align-items:center;gap:9px;">
-          <div class="step-dot" style="background:${bg};border:1.5px solid ${border};color:${color};">${done?"✓":n}</div>
+          <div class="step-dot" style="background:${bg};border:1.5px solid ${border};color:${color};">${done ? checkIcon : n}</div>
           <span style="font-size:10px;letter-spacing:1px;text-transform:uppercase;">${label}</span>
         </div>
       </div>${sep}`;
   }).join("");
 }
 
-// ── Mode ──────────────────────────────────────────────────────────────────────
 function switchMode(m) {
   mode = m;
   document.getElementById("btn-full").classList.toggle("active", m === "full");
@@ -438,11 +479,12 @@ function switchMode(m) {
   document.getElementById("info-box").innerHTML = m === "dateOnly"
     ? '<strong style="color:#6c63ff;">How it works:</strong> Upload invoice → set new dates → generate. Everything else stays identical.'
     : '<strong style="color:#6c63ff;">No template?</strong> Skip the upload — we\'ll build a professional invoice from the details below.';
-  document.getElementById("gen-btn").textContent = m === "dateOnly" ? "📅 Update Dates & Download" : "✨ Generate Filled Invoice";
+  document.getElementById("gen-btn").innerHTML = m === "dateOnly"
+    ? `<svg class="icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg> Update Dates &amp; Download`
+    : `<svg class="icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg> Generate Filled Invoice`;
   hideError(); renderSteps(1);
 }
 
-// ── File handling ─────────────────────────────────────────────────────────────
 async function handleFile(f) {
   if (!f) return;
   const ext = f.name.split(".").pop().toLowerCase();
@@ -464,14 +506,9 @@ function removeFile() {
   document.getElementById("file-pill").style.display = "none";
 }
 
-// ── Extract text from file client-side ────────────────────────────────────────
 async function extractFileText(file) {
   const ext = file.name.split(".").pop().toLowerCase();
-
-  if (ext === "txt") {
-    return await file.text();
-  }
-
+  if (ext === "txt") return await file.text();
   if (ext === "pdf") {
     const arrayBuffer = await file.arrayBuffer();
     const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
@@ -483,18 +520,10 @@ async function extractFileText(file) {
     }
     return text;
   }
-
-  if (ext === "docx") {
-    // For DOCX: send raw file as base64, backend handles mammoth
-    // But since we're going serverless without mammoth, we read what we can
-    // Better: prompt user that DOCX will be sent as-is and Gemini will handle it
-    return "[DOCX FILE — extract content and update accordingly]";
-  }
-
+  if (ext === "docx") return "[DOCX FILE — extract content and update accordingly]";
   return "";
 }
 
-// ── Items ─────────────────────────────────────────────────────────────────────
 function addItem() {
   items.push({ id: itemIdCounter++, desc: "", qty: 1, price: 0 });
   renderItems(); updateTotals();
@@ -508,8 +537,9 @@ function updateItem(id, key, val) {
   if (item) { item[key] = val; updateTotals(); }
 }
 
+const xIcon = `<svg class="icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`;
+
 function renderItems() {
-  // Desktop
   document.getElementById("items-list").innerHTML = items.map(it => `
     <div class="item-row">
       <input class="inp" type="text" placeholder="Service or product description" value="${it.desc}"
@@ -521,15 +551,14 @@ function renderItems() {
       <div style="font-size:13px;font-weight:600;color:#43e97b;text-align:right;padding:9px 4px;" id="row-total-${it.id}">
         ${fmt(it.qty*it.price)}
       </div>
-      <button class="rm-btn" onclick="removeItem(${it.id})" style="width:32px;height:32px;font-size:13px;">✕</button>
+      <button class="rm-btn" onclick="removeItem(${it.id})" style="width:32px;height:32px;">${xIcon}</button>
     </div>`).join("");
 
-  // Mobile
   document.getElementById("items-list-mobile").innerHTML = items.map((it, idx) => `
     <div class="item-card">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
         <span style="font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:#6b6b8a;">Item ${idx+1}</span>
-        <button class="rm-btn" onclick="removeItem(${it.id})" style="width:28px;height:28px;font-size:12px;">✕</button>
+        <button class="rm-btn" onclick="removeItem(${it.id})" style="width:28px;height:28px;">${xIcon}</button>
       </div>
       <div style="display:flex;flex-direction:column;gap:10px;">
         <div class="field"><label>Description</label>
@@ -564,14 +593,12 @@ function updateTotals() {
   document.getElementById("t-total").textContent = fmt(total);
   document.getElementById("t-words").textContent = numberToWords(total, curr);
 
-  // Update row totals in desktop view
   items.forEach(it => {
     const el = document.getElementById(`row-total-${it.id}`);
     if (el) el.textContent = fmt(it.qty * it.price);
   });
 }
 
-// ── Prompts ───────────────────────────────────────────────────────────────────
 function fullPrompt() {
   const sym      = getSym();
   const currency = document.getElementById("currency").value;
@@ -614,7 +641,6 @@ Output ONLY raw HTML starting with <!DOCTYPE html>. Zero markdown.`;
 
 function v(id) { return (document.getElementById(id)||{}).value || ""; }
 
-// ── Generate ──────────────────────────────────────────────────────────────────
 async function generate() {
   hideError();
   document.getElementById("form-section").style.display = "none";
@@ -623,9 +649,7 @@ async function generate() {
 
   try {
     let fileText = "";
-    if (currentFile) {
-      fileText = await extractFileText(currentFile);
-    }
+    if (currentFile) fileText = await extractFileText(currentFile);
 
     const prompt = mode === "dateOnly" ? datePrompt() : fullPrompt();
 
@@ -668,6 +692,5 @@ function hideError() {
   document.getElementById("error-box").style.display = "none";
 }
 </script>
-
 </body>
 </html>
