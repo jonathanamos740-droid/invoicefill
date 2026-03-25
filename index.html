@@ -9,147 +9,111 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    body { background: #0a0a0f; color: #e8e8f0; font-family: 'DM Mono', monospace; overflow-x: hidden; }
+    :root {
+      --bg: #0a0a0f; --surface: #13131a; --border: #2a2a3d; --border2: #1c1c27;
+      --text: #e8e8f0; --muted: #6b6b8a; --accent: #6c63ff; --accent2: #8b5cf6;
+      --green: #43e97b; --red: #ff6584;
+    }
+    body { background: var(--bg); color: var(--text); font-family: 'DM Mono', monospace; overflow-x: hidden; }
     input, select, textarea, button { font-family: 'DM Mono', monospace; }
     input[type=number]::-webkit-inner-spin-button { opacity: .4; }
     ::placeholder { color: #4a4a6a; }
-    select option { background: #13131a; }
+    select option { background: var(--surface); }
     a { text-decoration: none; }
+    svg.icon { display: inline-block; vertical-align: middle; flex-shrink: 0; }
 
     @keyframes spin   { to { transform: rotate(360deg); } }
-    @keyframes fadeUp { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:translateY(0); } }
-    .fade-up { animation: fadeUp .35s ease both; }
+    @keyframes fadeUp { from { opacity:0; transform:translateY(14px); } to { opacity:1; transform:translateY(0); } }
+    @keyframes pulse  { 0%,100%{opacity:1} 50%{opacity:.4} }
+    .fade-up { animation: fadeUp .4s ease both; }
 
     .bg-grid {
       position: fixed; inset: 0; pointer-events: none; z-index: 0;
-      background-image: linear-gradient(#2a2a3d30 1px,transparent 1px), linear-gradient(90deg,#2a2a3d30 1px,transparent 1px);
+      background-image: linear-gradient(#2a2a3d28 1px,transparent 1px), linear-gradient(90deg,#2a2a3d28 1px,transparent 1px);
       background-size: 60px 60px;
     }
-    .bg-glow-top {
-      position: fixed; top: -180px; left: -180px; width: 520px; height: 520px;
-      pointer-events: none; z-index: 0;
-      background: radial-gradient(circle, rgba(108,99,255,.13) 0%, transparent 70%);
-    }
-    .bg-glow-bottom {
-      position: fixed; bottom: -140px; right: -100px; width: 460px; height: 460px;
-      pointer-events: none; z-index: 0;
-      background: radial-gradient(circle, rgba(255,101,132,.09) 0%, transparent 70%);
-    }
+    .bg-glow-top { position: fixed; top: -200px; left: -200px; width: 600px; height: 600px; pointer-events: none; z-index: 0; background: radial-gradient(circle, rgba(108,99,255,.11) 0%, transparent 70%); }
+    .bg-glow-bottom { position: fixed; bottom: -160px; right: -120px; width: 500px; height: 500px; pointer-events: none; z-index: 0; background: radial-gradient(circle, rgba(255,101,132,.08) 0%, transparent 70%); }
 
-    .wrap { position: relative; z-index: 1; max-width: 920px; margin: 0 auto; padding: 44px 28px 100px; }
+    .wrap { position: relative; z-index: 1; max-width: 960px; margin: 0 auto; padding: 44px 28px 100px; }
     @media(max-width:640px) { .wrap { padding: 24px 16px 80px; } }
 
-    .inp {
-      background: #13131a; border: 1px solid #2a2a3d; border-radius: 10px;
-      padding: 12px 14px; color: #e8e8f0; font-size: 13px;
-      outline: none; width: 100%; transition: border-color .2s, background .2s, box-shadow .2s;
-    }
-    .inp:focus { border-color: #6c63ff; background: #1c1c27; box-shadow: 0 0 0 3px rgba(108,99,255,.12); }
+    .inp { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; color: var(--text); font-size: 13px; outline: none; width: 100%; transition: border-color .2s, background .2s, box-shadow .2s; }
+    .inp:focus { border-color: var(--accent); background: #1c1c27; box-shadow: 0 0 0 3px rgba(108,99,255,.12); }
+    textarea.inp { resize: vertical; min-height: 80px; line-height: 1.6; }
 
     .field { display: flex; flex-direction: column; gap: 7px; }
-    .field label { font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase; color: #6b6b8a; }
+    .field label { font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted); }
 
     .section-label { display: flex; align-items: center; gap: 10px; margin: 28px 0 16px; }
-    .section-label span { font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: #6b6b8a; white-space: nowrap; }
-    .section-label hr { flex: 1; border: none; border-top: 1px solid #2a2a3d; }
+    .section-label span { font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: var(--muted); white-space: nowrap; }
+    .section-label hr { flex: 1; border: none; border-top: 1px solid var(--border); }
 
     .g2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 4px; }
     @media(max-width:640px) { .g2 { grid-template-columns: 1fr; } }
 
-    .mode-btn {
-      flex: 1; padding: 11px 16px; background: transparent; border: none; border-radius: 10px;
-      color: #6b6b8a; font-size: 12px; cursor: pointer; transition: all .2s;
-      display: flex; align-items: center; justify-content: center; gap: 8px;
-    }
-    .mode-btn.active { background: linear-gradient(135deg,#6c63ff,#8b5cf6); color: #fff; font-weight: 600; }
-    @media(max-width:640px) { .mode-btn { padding: 10px 8px; font-size: 11px; } }
+    .landing { display: flex; flex-direction: column; align-items: center; text-align: center; padding: 20px 0 40px; }
 
-    .step-dot {
-      width: 26px; height: 26px; border-radius: 50%; display: flex; align-items: center;
-      justify-content: center; font-size: 11px; font-weight: 600; flex-shrink: 0; transition: all .3s;
-    }
+    .upload-card { width: 100%; max-width: 580px; border: 2px dashed var(--border); border-radius: 24px; padding: 56px 32px; background: var(--surface); cursor: pointer; transition: border-color .25s, background .25s, transform .2s; position: relative; overflow: hidden; }
+    .upload-card:hover, .upload-card.drag { border-color: var(--accent); background: #1a1a28; transform: translateY(-2px); }
+    .upload-card::before { content: ''; position: absolute; inset: 0; background: radial-gradient(circle at 50% 0%, rgba(108,99,255,.06) 0%, transparent 60%); pointer-events: none; }
+    @media(max-width:640px) { .upload-card { padding: 36px 20px; } }
 
-    .upload-zone {
-      border: 2px dashed #2a2a3d; border-radius: 20px; padding: 50px 28px;
-      text-align: center; cursor: pointer; background: #13131a; transition: all .2s;
-    }
-    .upload-zone:hover, .upload-zone.drag { border-color: #6c63ff; background: #1c1c27; }
-    @media(max-width:640px) { .upload-zone { padding: 32px 16px; } }
+    .upload-icon-wrap { width: 72px; height: 72px; border-radius: 20px; margin: 0 auto 20px; background: linear-gradient(135deg, rgba(108,99,255,.2), rgba(139,92,246,.1)); border: 1px solid rgba(108,99,255,.3); display: flex; align-items: center; justify-content: center; }
 
-    .choose-btn {
-      display: inline-flex; align-items: center; gap: 7px; padding: 9px 20px;
-      background: rgba(108,99,255,.15); border: 1px solid rgba(108,99,255,.4); color: #6c63ff;
-      border-radius: 8px; font-size: 12px; cursor: pointer; transition: background .2s;
-    }
-    .choose-btn:hover { background: rgba(108,99,255,.25); }
+    .or-divider { display: flex; align-items: center; gap: 16px; margin: 28px 0; width: 100%; max-width: 580px; color: var(--muted); font-size: 11px; letter-spacing: 1.5px; text-transform: uppercase; }
+    .or-divider::before, .or-divider::after { content: ''; flex: 1; height: 1px; background: var(--border); }
 
-    .file-pill {
-      display: flex; align-items: center; gap: 12px; padding: 14px 16px; margin-bottom: 14px;
-      background: #13131a; border: 1px solid rgba(67,233,123,.3); border-radius: 14px;
-    }
+    .scratch-btn { display: inline-flex; align-items: center; gap: 9px; padding: 14px 28px; background: none; border: 1px solid var(--border); color: var(--muted); border-radius: 12px; font-size: 13px; cursor: pointer; transition: all .2s; }
+    .scratch-btn:hover { border-color: var(--accent); color: var(--accent); background: rgba(108,99,255,.06); }
 
-    .totals-box { background: #13131a; border: 1px solid #2a2a3d; border-radius: 14px; padding: 18px 22px; margin-bottom: 20px; }
-    .totals-row { display: flex; justify-content: space-between; align-items: center; padding: 7px 0; font-size: 13px; border-bottom: 1px solid #1c1c27; flex-wrap: wrap; gap: 8px; }
+    .choose-btn { display: inline-flex; align-items: center; gap: 7px; padding: 10px 22px; background: rgba(108,99,255,.15); border: 1px solid rgba(108,99,255,.4); color: var(--accent); border-radius: 9px; font-size: 12px; cursor: pointer; transition: background .2s; margin-top: 16px; }
+    .choose-btn:hover { background: rgba(108,99,255,.28); }
 
-    .words-box {
-      background: rgba(108,99,255,.07); border: 1px solid rgba(108,99,255,.17);
-      border-radius: 10px; padding: 12px 15px; font-size: 12px; color: #a5b4fc;
-      font-style: italic; margin-bottom: 24px; line-height: 1.6;
-    }
+    .scan-card { width: 100%; max-width: 580px; border: 1px solid rgba(108,99,255,.3); border-radius: 24px; padding: 40px 32px; background: var(--surface); text-align: center; }
+    .scan-orb { width: 72px; height: 72px; border-radius: 50%; margin: 0 auto 20px; border: 2px solid var(--border); border-top-color: var(--accent); animation: spin .9s linear infinite; }
+    .scan-lines { display: flex; flex-direction: column; gap: 8px; margin-top: 24px; text-align: left; }
+    .scan-line { height: 10px; border-radius: 5px; background: linear-gradient(90deg, rgba(108,99,255,.3), rgba(108,99,255,.05)); animation: pulse 1.4s ease infinite; }
 
-    .info-box {
-      background: rgba(108,99,255,.07); border: 1px solid rgba(108,99,255,.17);
-      border-radius: 10px; padding: 12px 15px; font-size: 12px; color: #6b6b8a;
-      line-height: 1.6; margin-bottom: 8px;
-    }
+    .file-pill { display: flex; align-items: center; gap: 12px; padding: 12px 16px; background: var(--surface); border: 1px solid rgba(67,233,123,.3); border-radius: 12px; margin-bottom: 20px; }
+    .file-icon-wrap { width: 38px; height: 38px; flex-shrink: 0; border-radius: 9px; background: rgba(67,233,123,.1); display: flex; align-items: center; justify-content: center; }
 
-    .item-row { display: grid; grid-template-columns: 2fr 70px 140px 110px 38px; gap: 8px; align-items: center; margin-bottom: 8px; }
-    .item-hdr { display: grid; grid-template-columns: 2fr 70px 140px 110px 38px; gap: 8px; padding: 5px 0; border-bottom: 1px solid #2a2a3d; margin-bottom: 8px; }
+    .rm-btn { background: none; border: 1px solid var(--border); color: var(--muted); border-radius: 6px; cursor: pointer; transition: all .2s; display: flex; align-items: center; justify-content: center; }
+    .rm-btn:hover { border-color: var(--red); color: var(--red); }
 
-    .rm-btn {
-      background: none; border: 1px solid #2a2a3d; color: #6b6b8a;
-      border-radius: 6px; cursor: pointer; transition: all .2s; display: flex; align-items: center; justify-content: center;
-    }
-    .rm-btn:hover { border-color: #ff6584; color: #ff6584; }
+    .item-hdr { display: grid; grid-template-columns: 2.5fr 70px 140px 110px 38px; gap: 8px; padding: 5px 0; border-bottom: 1px solid var(--border); margin-bottom: 8px; }
+    .item-row { display: grid; grid-template-columns: 2.5fr 70px 140px 110px 38px; gap: 8px; align-items: center; margin-bottom: 8px; }
+    @media(max-width:640px) { .item-hdr, .item-row { display: none; } }
 
-    .add-item-btn {
-      background: none; border: 1px dashed #2a2a3d; color: #6b6b8a;
-      padding: 9px 18px; border-radius: 8px; font-size: 12px; cursor: pointer;
-      display: inline-flex; align-items: center; gap: 7px; margin-top: 4px; margin-bottom: 24px; transition: all .2s;
-    }
-    .add-item-btn:hover { border-color: #6c63ff; color: #6c63ff; }
+    .item-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 14px; margin-bottom: 10px; display: none; }
+    .item-g2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    @media(max-width:640px) { .item-card { display: block; } }
 
-    .gen-btn {
-      width: 100%; padding: 18px 32px; background: linear-gradient(135deg,#6c63ff,#8b5cf6);
-      border: none; border-radius: 14px; color: #fff; font-weight: 800; font-size: 17px;
-      letter-spacing: -.3px; cursor: pointer; display: flex; align-items: center; justify-content: center;
-      gap: 10px; transition: all .25s;
-    }
+    .add-item-btn { background: none; border: 1px dashed var(--border); color: var(--muted); padding: 9px 18px; border-radius: 8px; font-size: 12px; cursor: pointer; display: inline-flex; align-items: center; gap: 7px; margin-top: 4px; margin-bottom: 24px; transition: all .2s; }
+    .add-item-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+    .totals-box { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 18px 22px; margin-bottom: 20px; }
+    .totals-row { display: flex; justify-content: space-between; align-items: center; padding: 7px 0; font-size: 13px; border-bottom: 1px solid var(--border2); flex-wrap: wrap; gap: 8px; }
+    .total-big { display: flex; justify-content: space-between; align-items: center; padding-top: 14px; margin-top: 4px; font-family: 'Syne', sans-serif; font-weight: 800; font-size: 22px; color: var(--accent); }
+
+    .words-box { background: rgba(108,99,255,.07); border: 1px solid rgba(108,99,255,.17); border-radius: 10px; padding: 12px 15px; font-size: 12px; color: #a5b4fc; font-style: italic; margin-bottom: 24px; line-height: 1.6; }
+
+    .gen-btn { width: 100%; padding: 18px 32px; background: linear-gradient(135deg, var(--accent), var(--accent2)); border: none; border-radius: 14px; color: #fff; font-weight: 800; font-size: 17px; letter-spacing: -.3px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 10px; transition: all .25s; }
     .gen-btn:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 14px 40px rgba(108,99,255,.42); }
     .gen-btn:disabled { opacity: .5; cursor: not-allowed; }
-    @media(max-width:640px) { .gen-btn { padding: 15px; font-size: 15px; } }
 
-    .dl-btn {
-      display: inline-flex; align-items: center; gap: 8px; padding: 14px 28px;
-      background: linear-gradient(135deg,#43e97b,#38d9a9); color: #000;
-      border-radius: 10px; font-weight: 700; font-size: 14px; transition: all .2s;
-    }
+    .err-box { background: rgba(255,101,132,.1); border: 1px solid rgba(255,101,132,.3); border-radius: 10px; padding: 12px 15px; font-size: 12px; color: var(--red); display: flex; align-items: flex-start; gap: 9px; margin-bottom: 14px; }
+
+    .result-card { background: var(--surface); border: 1px solid rgba(67,233,123,.3); border-radius: 24px; padding: 48px 32px; text-align: center; }
+    .dl-btn { display: inline-flex; align-items: center; gap: 9px; padding: 15px 32px; background: linear-gradient(135deg, var(--green), #38d9a9); color: #000; border-radius: 12px; font-weight: 700; font-size: 15px; cursor: pointer; border: none; transition: all .2s; }
     .dl-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 28px rgba(67,233,123,.4); }
+    .reset-btn { display: inline-flex; align-items: center; gap: 8px; padding: 15px 24px; background: none; border: 1px solid var(--border); color: var(--muted); border-radius: 12px; font-size: 13px; cursor: pointer; transition: all .2s; }
+    .reset-btn:hover { border-color: var(--accent); color: var(--accent); }
 
-    .err-box {
-      background: rgba(255,101,132,.1); border: 1px solid rgba(255,101,132,.3);
-      border-radius: 10px; padding: 12px 15px; font-size: 12px; color: #ff6584;
-      display: flex; align-items: flex-start; gap: 9px; margin-bottom: 14px;
-    }
-
-    .item-card { background: #13131a; border: 1px solid #2a2a3d; border-radius: 12px; padding: 14px; margin-bottom: 10px; }
-    .item-g2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-
-    svg.icon { display: inline-block; vertical-align: middle; flex-shrink: 0; }
+    .ai-badge { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; background: rgba(67,233,123,.1); border: 1px solid rgba(67,233,123,.3); border-radius: 20px; font-size: 10px; color: var(--green); letter-spacing: .5px; }
   </style>
 </head>
 <body>
-
 <div class="bg-grid"></div>
 <div class="bg-glow-top"></div>
 <div class="bg-glow-bottom"></div>
@@ -160,420 +124,386 @@
   <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:52px;">
     <div style="display:flex;align-items:center;gap:11px;">
       <div style="width:40px;height:40px;border-radius:10px;background:linear-gradient(135deg,#6c63ff,#ff6584);display:flex;align-items:center;justify-content:center;">
-        <!-- FileText icon -->
-        <svg class="icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+        <svg class="icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
       </div>
       <span style="font-family:'Syne',sans-serif;font-weight:800;font-size:22px;letter-spacing:-.5px;">Invoice<span style="color:#6c63ff;">Fill</span></span>
     </div>
     <div style="font-size:10px;letter-spacing:1px;text-transform:uppercase;padding:4px 12px;border-radius:20px;background:rgba(108,99,255,.14);border:1px solid rgba(108,99,255,.3);color:#6c63ff;">AI-Powered</div>
   </div>
 
-  <!-- Hero -->
-  <h1 style="font-family:'Syne',sans-serif;font-weight:800;font-size:clamp(28px,5vw,50px);line-height:1.1;letter-spacing:-1.5px;margin-bottom:12px;">
-    Fill invoices<br /><span style="color:#6c63ff;">in seconds.</span>
-  </h1>
-  <p style="color:#6b6b8a;font-size:13px;line-height:1.7;max-width:480px;margin-bottom:32px;">
-    Upload a blank template or fill from scratch. Need to just swap a date? We handle that too.
-  </p>
-
-  <!-- Mode Toggle -->
-  <div style="display:flex;gap:4px;background:#13131a;border:1px solid #2a2a3d;border-radius:14px;padding:4px;margin-bottom:28px;">
-    <button class="mode-btn active" id="btn-full" onclick="switchMode('full')">
-      <!-- Sparkles icon -->
-      <svg class="icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3L9.5 9.5 3 12l6.5 2.5L12 21l2.5-6.5L21 12l-6.5-2.5L12 3z"/></svg>
-      Fill New Invoice
-    </button>
-    <button class="mode-btn" id="btn-dateOnly" onclick="switchMode('dateOnly')">
-      <!-- Calendar icon -->
-      <svg class="icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-      Change Date Only
-    </button>
+  <!-- SCREEN: Landing -->
+  <div id="screen-landing" class="fade-up">
+    <div class="landing">
+      <h1 style="font-family:'Syne',sans-serif;font-weight:800;font-size:clamp(28px,5vw,52px);line-height:1.08;letter-spacing:-1.5px;margin-bottom:14px;">Fill invoices<br/><span style="color:#6c63ff;">in seconds.</span></h1>
+      <p style="color:#6b6b8a;font-size:13px;line-height:1.8;max-width:440px;margin-bottom:40px;">Upload an existing invoice — AI reads it, pre-fills all the fields, you edit what you need, then download a real PDF. Works on phone too.</p>
+      <div class="upload-card" id="upload-card"
+        onclick="document.getElementById('file-input').click()"
+        ondragover="event.preventDefault();this.classList.add('drag')"
+        ondragleave="this.classList.remove('drag')"
+        ondrop="event.preventDefault();this.classList.remove('drag');handleFile(event.dataTransfer.files[0])">
+        <div class="upload-icon-wrap">
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#6c63ff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><polyline points="12 18 12 12"/><polyline points="9 15 12 12 15 15"/></svg>
+        </div>
+        <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:20px;margin-bottom:8px;">Upload your invoice</div>
+        <div style="color:#6b6b8a;font-size:12px;line-height:1.8;">Drop a PDF, DOCX, or TXT file here<br/>AI will read and extract all fields automatically</div>
+        <div class="choose-btn" onclick="event.stopPropagation();document.getElementById('file-input').click()">
+          <svg class="icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/></svg>
+          Choose File
+        </div>
+        <input type="file" id="file-input" accept=".pdf,.docx,.txt" style="display:none" onchange="handleFile(this.files[0])" />
+      </div>
+      <div class="or-divider">or</div>
+      <button class="scratch-btn" onclick="startFromScratch()">
+        <svg class="icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Start from scratch
+      </button>
+    </div>
   </div>
 
-  <!-- Steps -->
-  <div style="display:flex;align-items:center;background:#13131a;border:1px solid #2a2a3d;border-radius:14px;padding:15px 22px;margin-bottom:32px;" id="steps-bar"></div>
-
-  <!-- Result -->
-  <div id="result-section" style="display:none;" class="fade-up">
-    <div style="background:#13131a;border:1px solid rgba(67,233,123,.3);border-radius:20px;padding:40px 32px;text-align:center;">
-      <div style="display:flex;justify-content:center;margin-bottom:14px;">
-        <!-- CheckCircle icon -->
-        <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="#43e97b" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
-      </div>
-      <div style="font-family:'Syne',sans-serif;font-weight:800;font-size:30px;color:#43e97b;margin-bottom:8px;letter-spacing:-.5px;">Invoice Ready!</div>
-      <p style="color:#6b6b8a;font-size:13px;margin-bottom:28px;line-height:1.6;">Download below. Open in browser → Ctrl+P → Save as PDF.</p>
-      <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;">
-        <a class="dl-btn" id="dl-link" href="#" download="invoice.html">
-          <!-- Download icon -->
-          <svg class="icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-          Download Invoice
-        </a>
-        <button onclick="resetAll()" style="display:inline-flex;align-items:center;gap:8px;padding:14px 22px;background:none;border:1px solid #2a2a3d;color:#6b6b8a;border-radius:10px;font-size:12px;cursor:pointer;">
-          <!-- RotateCcw icon -->
-          <svg class="icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.5"/></svg>
-          Fill Another
-        </button>
+  <!-- SCREEN: Scanning -->
+  <div id="screen-scanning" style="display:none;">
+    <div class="landing">
+      <div class="scan-card">
+        <div class="scan-orb"></div>
+        <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:20px;margin-bottom:6px;">Reading your invoice...</div>
+        <div style="color:#6b6b8a;font-size:12px;">AI is extracting all the fields</div>
+        <div class="scan-lines">
+          <div class="scan-line" style="width:80%;animation-delay:0s"></div>
+          <div class="scan-line" style="width:60%;animation-delay:.2s"></div>
+          <div class="scan-line" style="width:90%;animation-delay:.4s"></div>
+          <div class="scan-line" style="width:50%;animation-delay:.6s"></div>
+          <div class="scan-line" style="width:75%;animation-delay:.8s"></div>
+        </div>
       </div>
     </div>
   </div>
 
-  <!-- Loading -->
-  <div id="loading-section" style="display:none;flex-direction:column;align-items:center;gap:16px;padding:60px 0;text-align:center;">
-    <div style="width:40px;height:40px;border:3px solid #2a2a3d;border-top-color:#6c63ff;border-radius:50%;animation:spin .8s linear infinite;"></div>
-    <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:20px;" id="loading-text">Filling your invoice…</div>
-    <div style="font-size:12px;color:#6b6b8a;">AI is working on your document</div>
-  </div>
+  <!-- SCREEN: Form -->
+  <div id="screen-form" style="display:none;">
 
-  <!-- Form -->
-  <div id="form-section" class="fade-up">
-
-    <!-- Upload zone -->
-    <div class="upload-zone" id="upload-zone" onclick="document.getElementById('file-input').click()"
-      ondragover="event.preventDefault();this.classList.add('drag')"
-      ondragleave="this.classList.remove('drag')"
-      ondrop="event.preventDefault();this.classList.remove('drag');handleFile(event.dataTransfer.files[0])">
-      <div style="display:flex;justify-content:center;margin-bottom:12px;">
-        <!-- FolderOpen icon -->
-        <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="#6c63ff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/><polyline points="12 11 12 17"/><polyline points="9 14 12 17 15 14"/></svg>
-      </div>
-      <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:18px;margin-bottom:8px;" id="upload-title">Drop your blank invoice template</div>
-      <div style="color:#6b6b8a;font-size:12px;margin-bottom:18px;line-height:1.7;" id="upload-sub">Optional — skip to generate from scratch<br/>.docx · .pdf · .txt</div>
-      <div class="choose-btn" onclick="event.stopPropagation();document.getElementById('file-input').click()">
-        <!-- Upload icon -->
-        <svg class="icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/></svg>
-        Choose File
-      </div>
-      <input type="file" id="file-input" accept=".pdf,.docx,.txt" style="display:none" onchange="handleFile(this.files[0])" />
-    </div>
-
-    <!-- File pill -->
     <div class="file-pill" id="file-pill" style="display:none;">
-      <div style="width:40px;height:40px;flex-shrink:0;border-radius:10px;background:rgba(67,233,123,.1);display:flex;align-items:center;justify-content:center;">
-        <!-- File icon -->
-        <svg class="icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#43e97b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/></svg>
+      <div class="file-icon-wrap">
+        <svg class="icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#43e97b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/></svg>
       </div>
       <div style="flex:1;min-width:0;">
-        <div style="font-family:'Syne',sans-serif;font-weight:600;font-size:13px;color:#43e97b;margin-bottom:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" id="file-name"></div>
-        <div style="font-size:11px;color:#6b6b8a;" id="file-size"></div>
+        <div style="font-size:13px;font-weight:600;color:#43e97b;margin-bottom:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" id="pill-name"></div>
+        <div class="ai-badge">
+          <svg class="icon" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3L9.5 9.5 3 12l6.5 2.5L12 21l2.5-6.5L21 12l-6.5-2.5L12 3z"/></svg>
+          Fields extracted by AI — review and edit below
+        </div>
       </div>
-      <button class="rm-btn" onclick="removeFile()" style="width:32px;height:32px;">
-        <!-- X icon -->
-        <svg class="icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      <button class="rm-btn" onclick="goBack()" style="width:32px;height:32px;" title="Start over">
+        <svg class="icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
       </button>
     </div>
 
-    <!-- Info -->
-    <div class="info-box" id="info-box">
-      <strong style="color:#6c63ff;">No template?</strong> Skip the upload — we'll build a professional invoice from the details below.
+    <div class="section-label"><span>Your Company (Seller)</span><hr/></div>
+    <div class="g2">
+      <div class="field"><label>Company Name</label><input class="inp" id="s-name" type="text" placeholder="Acme Ltd." /></div>
+      <div class="field"><label>Address</label><input class="inp" id="s-addr" type="text" placeholder="123 Main St, Lagos" /></div>
+      <div class="field"><label>Phone</label><input class="inp" id="s-phone" type="tel" placeholder="+234 800 000 0000" /></div>
+      <div class="field"><label>Email</label><input class="inp" id="s-email" type="email" placeholder="billing@acme.com" /></div>
     </div>
 
-    <!-- Date Only section -->
-    <div id="date-section" style="display:none;">
-      <div class="section-label"><span>New Dates</span><hr/></div>
-      <div class="g2">
-        <div class="field"><label>New Invoice Date</label><input class="inp" type="date" id="new-date" /></div>
-        <div class="field"><label>New Due Date</label><input class="inp" type="date" id="new-due" /></div>
+    <div class="section-label"><span>Invoice Details</span><hr/></div>
+    <div class="g2">
+      <div class="field"><label>Invoice Number</label><input class="inp" id="inv-num" type="text" /></div>
+      <div class="field"><label>Currency</label>
+        <select class="inp" id="currency" onchange="updateTotals()">
+          <option value="NGN" data-sym="&#8358;">NGN — Nigerian Naira</option>
+          <option value="USD" data-sym="$">USD — US Dollar</option>
+          <option value="GBP" data-sym="&#163;">GBP — British Pound</option>
+          <option value="EUR" data-sym="&#8364;">EUR — Euro</option>
+          <option value="GHS" data-sym="&#8373;">GHS — Ghanaian Cedi</option>
+          <option value="KES" data-sym="KSh">KES — Kenyan Shilling</option>
+          <option value="ZAR" data-sym="R">ZAR — South African Rand</option>
+        </select>
       </div>
+      <div class="field"><label>Invoice Date</label><input class="inp" id="inv-date" type="date" /></div>
+      <div class="field"><label>Due Date</label><input class="inp" id="inv-due" type="date" /></div>
+    </div>
+    <div class="field" style="margin-bottom:4px;margin-top:4px;">
+      <label>Description / Purpose</label>
+      <input class="inp" id="inv-desc" type="text" placeholder="e.g. Web design services for March 2025" />
     </div>
 
-    <!-- Full Form section -->
-    <div id="full-section">
-      <div class="section-label"><span>Your Company (Seller)</span><hr/></div>
-      <div class="g2">
-        <div class="field"><label>Company Name</label><input class="inp" type="text" id="s-name" placeholder="Acme Ltd." /></div>
-        <div class="field"><label>Address</label><input class="inp" type="text" id="s-addr" placeholder="123 Main St, Lagos" /></div>
-        <div class="field"><label>Phone</label><input class="inp" type="tel" id="s-phone" placeholder="+234 800 000 0000" /></div>
-        <div class="field"><label>Email</label><input class="inp" type="email" id="s-email" placeholder="billing@acme.com" /></div>
-      </div>
-
-      <div class="section-label"><span>Invoice Details</span><hr/></div>
-      <div class="g2">
-        <div class="field"><label>Invoice Number</label><input class="inp" type="text" id="inv-num" /></div>
-        <div class="field"><label>Currency</label>
-          <select class="inp" id="currency" onchange="updateTotals()">
-            <option value="NGN" data-sym="₦">NGN — Nigerian Naira</option>
-            <option value="USD" data-sym="$">USD — US Dollar</option>
-            <option value="GBP" data-sym="£">GBP — British Pound</option>
-            <option value="EUR" data-sym="€">EUR — Euro</option>
-            <option value="GHS" data-sym="₵">GHS — Ghanaian Cedi</option>
-            <option value="KES" data-sym="KSh">KES — Kenyan Shilling</option>
-            <option value="ZAR" data-sym="R">ZAR — South African Rand</option>
-          </select>
-        </div>
-        <div class="field"><label>Invoice Date</label><input class="inp" type="date" id="inv-date" /></div>
-        <div class="field"><label>Due Date</label><input class="inp" type="date" id="inv-due" /></div>
-      </div>
-
-      <div class="section-label"><span>Buyer / Client</span><hr/></div>
-      <div class="g2">
-        <div class="field"><label>Client Name</label><input class="inp" type="text" id="b-name" placeholder="Global Corp Ltd." /></div>
-        <div class="field"><label>Address</label><input class="inp" type="text" id="b-addr" placeholder="456 Commerce Ave, Abuja" /></div>
-        <div class="field"><label>Email</label><input class="inp" type="email" id="b-email" placeholder="accounts@client.com" /></div>
-        <div class="field"><label>Phone</label><input class="inp" type="tel" id="b-phone" placeholder="+234 900 000 0000" /></div>
-      </div>
-
-      <div class="section-label"><span>Line Items</span><hr/></div>
-      <div id="items-desktop" style="display:block;">
-        <div class="item-hdr">
-          <span style="font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:#6b6b8a;">Description</span>
-          <span style="font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:#6b6b8a;">Qty</span>
-          <span style="font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:#6b6b8a;">Unit Price</span>
-          <span style="font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:#6b6b8a;text-align:right;">Total</span>
-          <span></span>
-        </div>
-        <div id="items-list"></div>
-      </div>
-      <div id="items-mobile" style="display:none;">
-        <div id="items-list-mobile"></div>
-      </div>
-
-      <button class="add-item-btn" onclick="addItem()">
-        <!-- Plus icon -->
-        <svg class="icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-        Add Item
-      </button>
-
-      <!-- Totals -->
-      <div class="totals-box">
-        <div class="totals-row"><span style="color:#6b6b8a;">Subtotal</span><span id="t-sub">₦0.00</span></div>
-        <div class="totals-row">
-          <span style="color:#6b6b8a;display:flex;align-items:center;gap:7px;">
-            VAT <input class="inp" type="number" id="vat-rate" value="7.5" min="0" max="100" step="0.5" style="width:58px;padding:3px 7px;font-size:12px;text-align:center;border-radius:6px;" oninput="updateTotals()" /> %
-          </span>
-          <span id="t-vat">₦0.00</span>
-        </div>
-        <div class="totals-row">
-          <span style="color:#6b6b8a;">Discount</span>
-          <input class="inp" type="number" id="discount" value="0" min="0" step="100" style="width:120px;padding:4px 10px;font-size:12px;text-align:right;border-radius:6px;" oninput="updateTotals()" />
-        </div>
-        <div style="display:flex;justify-content:space-between;align-items:center;padding-top:14px;margin-top:4px;font-family:'Syne',sans-serif;font-weight:800;font-size:22px;color:#6c63ff;">
-          <span>Total Due</span><span id="t-total">₦0.00</span>
-        </div>
-      </div>
-
-      <!-- Words -->
-      <div class="words-box">
-        <span style="color:#6b6b8a;font-size:9px;letter-spacing:1.5px;text-transform:uppercase;font-style:normal;">Amount in Words — </span>
-        <span id="t-words">Zero Nairas Only</span>
-      </div>
-
-      <div class="section-label"><span>Payment Details</span><hr/></div>
-      <div class="g2">
-        <div class="field"><label>Bank Name</label><input class="inp" type="text" id="p-bank" placeholder="First Bank of Nigeria" /></div>
-        <div class="field"><label>Account Number</label><input class="inp" type="text" id="p-acct" placeholder="0123456789" /></div>
-        <div class="field"><label>Account Name</label><input class="inp" type="text" id="p-aname" placeholder="Acme Ltd." /></div>
-        <div class="field"><label>Sort Code / SWIFT</label><input class="inp" type="text" id="p-swift" placeholder="011" /></div>
-      </div>
-
-      <div class="section-label"><span>Notes / Terms</span><hr/></div>
-      <textarea class="inp" id="notes" placeholder="Payment due within 30 days. Thank you for your business." style="resize:vertical;min-height:80px;line-height:1.6;"></textarea>
+    <div class="section-label"><span>Buyer / Client</span><hr/></div>
+    <div class="g2">
+      <div class="field"><label>Client Name</label><input class="inp" id="b-name" type="text" placeholder="Global Corp Ltd." /></div>
+      <div class="field"><label>Address</label><input class="inp" id="b-addr" type="text" placeholder="456 Commerce Ave, Abuja" /></div>
+      <div class="field"><label>Email</label><input class="inp" id="b-email" type="email" placeholder="accounts@client.com" /></div>
+      <div class="field"><label>Phone</label><input class="inp" id="b-phone" type="tel" placeholder="+234 900 000 0000" /></div>
     </div>
 
-    <!-- Error + Generate -->
+    <div class="section-label"><span>Line Items</span><hr/></div>
+    <div id="items-desktop">
+      <div class="item-hdr">
+        <span style="font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:#6b6b8a;">Description</span>
+        <span style="font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:#6b6b8a;">Qty</span>
+        <span style="font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:#6b6b8a;">Unit Price</span>
+        <span style="font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:#6b6b8a;text-align:right;">Total</span>
+        <span></span>
+      </div>
+      <div id="items-list"></div>
+    </div>
+    <div id="items-mobile"><div id="items-list-mobile"></div></div>
+
+    <button class="add-item-btn" onclick="addItem()">
+      <svg class="icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      Add Item
+    </button>
+
+    <div class="totals-box">
+      <div class="totals-row"><span style="color:#6b6b8a;">Subtotal</span><span id="t-sub">0.00</span></div>
+      <div class="totals-row">
+        <span style="color:#6b6b8a;display:flex;align-items:center;gap:7px;">VAT <input class="inp" type="number" id="vat-rate" value="7.5" min="0" max="100" step="0.5" style="width:58px;padding:3px 7px;font-size:12px;text-align:center;border-radius:6px;" oninput="updateTotals()" /> %</span>
+        <span id="t-vat">0.00</span>
+      </div>
+      <div class="totals-row">
+        <span style="color:#6b6b8a;">Discount</span>
+        <input class="inp" type="number" id="discount" value="0" min="0" step="100" style="width:130px;padding:4px 10px;font-size:12px;text-align:right;border-radius:6px;" oninput="updateTotals()" />
+      </div>
+      <div class="total-big"><span>Total Due</span><span id="t-total">0.00</span></div>
+    </div>
+
+    <div class="words-box">
+      <span style="color:#6b6b8a;font-size:9px;letter-spacing:1.5px;text-transform:uppercase;font-style:normal;">Amount in Words — </span>
+      <span id="t-words">Zero Nairas Only</span>
+    </div>
+
+    <div class="section-label"><span>Payment Details</span><hr/></div>
+    <div class="g2">
+      <div class="field"><label>Bank Name</label><input class="inp" id="p-bank" type="text" placeholder="First Bank of Nigeria" /></div>
+      <div class="field"><label>Account Number</label><input class="inp" id="p-acct" type="text" placeholder="0123456789" /></div>
+      <div class="field"><label>Account Name</label><input class="inp" id="p-aname" type="text" placeholder="Acme Ltd." /></div>
+      <div class="field"><label>Sort Code / SWIFT</label><input class="inp" id="p-swift" type="text" placeholder="011" /></div>
+    </div>
+
+    <div class="section-label"><span>Notes / Terms</span><hr/></div>
+    <textarea class="inp" id="notes" placeholder="Payment due within 30 days. Thank you for your business."></textarea>
+
     <div style="margin-top:28px;">
       <div class="err-box" id="error-box" style="display:none;">
-        <!-- AlertTriangle icon -->
-        <svg class="icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;margin-top:1px;"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        <svg class="icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-top:1px;"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
         <span id="error-msg"></span>
       </div>
-      <button class="gen-btn" id="gen-btn" onclick="generate()">
-        <!-- Zap icon -->
+      <button class="gen-btn" onclick="generate()">
         <svg class="icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
-        Generate Filled Invoice
+        Generate PDF Invoice
       </button>
     </div>
+  </div>
 
-  </div><!-- /form-section -->
-</div><!-- /wrap -->
+  <!-- SCREEN: Generating -->
+  <div id="screen-generating" style="display:none;">
+    <div class="landing">
+      <div class="scan-card">
+        <div class="scan-orb"></div>
+        <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:20px;margin-bottom:6px;">Building your invoice...</div>
+        <div style="color:#6b6b8a;font-size:12px;" id="gen-status">AI is designing your invoice</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SCREEN: Result -->
+  <div id="screen-result" style="display:none;">
+    <div class="landing">
+      <div class="result-card" style="max-width:580px;width:100%;">
+        <div style="display:flex;justify-content:center;margin-bottom:16px;">
+          <svg width="60" height="60" viewBox="0 0 24 24" fill="none" stroke="#43e97b" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+        </div>
+        <div style="font-family:'Syne',sans-serif;font-weight:800;font-size:32px;color:#43e97b;margin-bottom:8px;letter-spacing:-.5px;">Invoice Ready!</div>
+        <p style="color:#6b6b8a;font-size:13px;margin-bottom:32px;line-height:1.7;">Your PDF has been generated. Tap below to download.</p>
+        <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;">
+          <button class="dl-btn" onclick="downloadPDF()">
+            <svg class="icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            Download PDF
+          </button>
+          <button class="reset-btn" onclick="resetAll()">
+            <svg class="icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.5"/></svg>
+            New Invoice
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
 
 <script>
-pdfjsLib.GlobalWorkerOptions.workerSrc =
-  "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
 
-let mode = "full";
-let currentFile = null;
-let items = [{ id: 1, desc: "", qty: 1, price: 0 }];
+let items = [{ id:1, desc:"", qty:1, price:0 }];
 let itemIdCounter = 2;
-const isMobile = () => window.innerWidth < 640;
+let pdfBase64 = null;
+let pdfFileName = "invoice";
 
-const CURRENCY_NAMES = {
-  NGN:["Naira","Kobo"], USD:["Dollar","Cent"], GBP:["Pound","Penny"],
-  EUR:["Euro","Cent"],  GHS:["Cedi","Pesewa"], KES:["Shilling","Cent"], ZAR:["Rand","Cent"],
-};
-const ONES = ["","One","Two","Three","Four","Five","Six","Seven","Eight","Nine",
-  "Ten","Eleven","Twelve","Thirteen","Fourteen","Fifteen","Sixteen","Seventeen","Eighteen","Nineteen"];
+const CURRENCY_NAMES = { NGN:["Naira","Kobo"], USD:["Dollar","Cent"], GBP:["Pound","Penny"], EUR:["Euro","Cent"], GHS:["Cedi","Pesewa"], KES:["Shilling","Cent"], ZAR:["Rand","Cent"] };
+const ONES = ["","One","Two","Three","Four","Five","Six","Seven","Eight","Nine","Ten","Eleven","Twelve","Thirteen","Fourteen","Fifteen","Sixteen","Seventeen","Eighteen","Nineteen"];
 const TENS = ["","","Twenty","Thirty","Forty","Fifty","Sixty","Seventy","Eighty","Ninety"];
 function sayNum(n) {
   if (!n) return "";
-  if (n < 20)   return ONES[n];
-  if (n < 100)  return TENS[Math.floor(n/10)] + (n%10 ? " "+ONES[n%10] : "");
+  if (n < 20) return ONES[n];
+  if (n < 100) return TENS[Math.floor(n/10)] + (n%10 ? " "+ONES[n%10] : "");
   if (n < 1000) return ONES[Math.floor(n/100)]+" Hundred"+(n%100?" "+sayNum(n%100):"");
-  if (n < 1e6)  return sayNum(Math.floor(n/1000))+" Thousand"+(n%1000?" "+sayNum(n%1000):"");
-  if (n < 1e9)  return sayNum(Math.floor(n/1e6))+" Million"+(n%1e6?" "+sayNum(n%1e6):"");
+  if (n < 1e6) return sayNum(Math.floor(n/1000))+" Thousand"+(n%1000?" "+sayNum(n%1000):"");
+  if (n < 1e9) return sayNum(Math.floor(n/1e6))+" Million"+(n%1e6?" "+sayNum(n%1e6):"");
   return sayNum(Math.floor(n/1e9))+" Billion"+(n%1e9?" "+sayNum(n%1e9):"");
 }
 function numberToWords(amount, curr) {
   const [main, sub] = (amount||0).toFixed(2).split(".").map(Number);
-  const names = CURRENCY_NAMES[curr]||["Unit","Sub"];
-  if (!main && !sub) return `Zero ${names[0]}s Only`;
+  const names = CURRENCY_NAMES[curr] || ["Unit","Sub"];
+  if (!main && !sub) return "Zero "+names[0]+"s Only";
   let r = sayNum(main)+" "+names[0]+(main!==1?"s":"");
   if (sub) r += " and "+sayNum(sub)+" "+names[1]+(sub!==1?"s":"");
   return r+" Only";
 }
 function getSym() {
   const sel = document.getElementById("currency");
-  return sel.options[sel.selectedIndex].dataset.sym || "₦";
+  return sel.options[sel.selectedIndex]?.dataset?.sym || "\u20A6";
 }
-function fmt(n) {
-  return getSym() + (n||0).toLocaleString("en-NG",{minimumFractionDigits:2,maximumFractionDigits:2});
-}
+function fmt(n) { return getSym()+(n||0).toLocaleString("en-NG",{minimumFractionDigits:2,maximumFractionDigits:2}); }
 function todayStr() { return new Date().toISOString().split("T")[0]; }
-function plus30()   { const d=new Date(); d.setDate(d.getDate()+30); return d.toISOString().split("T")[0]; }
-function randInv()  { return "INV-"+new Date().getFullYear()+"-"+String(Math.floor(Math.random()*900)+100); }
+function plus30() { const d=new Date(); d.setDate(d.getDate()+30); return d.toISOString().split("T")[0]; }
+function randInv() { return "INV-"+new Date().getFullYear()+"-"+String(Math.floor(Math.random()*900)+100); }
+function v(id) { return (document.getElementById(id)||{}).value || ""; }
+function esc(s) { return (s||"").replace(/"/g,"&quot;"); }
 
-document.getElementById("inv-num").value  = randInv();
-document.getElementById("inv-date").value = todayStr();
-document.getElementById("inv-due").value  = plus30();
-document.getElementById("new-date").value = todayStr();
-document.getElementById("new-due").value  = plus30();
-renderItems(); updateTotals(); renderSteps(1);
-checkMobile();
-window.addEventListener("resize", checkMobile);
-
-function checkMobile() {
-  document.getElementById("items-desktop").style.display = isMobile() ? "none" : "block";
-  document.getElementById("items-mobile").style.display  = isMobile() ? "block" : "none";
+function show(id) {
+  ["screen-landing","screen-scanning","screen-form","screen-generating","screen-result"].forEach(s => {
+    document.getElementById(s).style.display = "none";
+  });
+  document.getElementById(id).style.display = "block";
 }
 
-function renderSteps(step) {
-  const labels = ["Upload","Fill","Download"];
-  const bar = document.getElementById("steps-bar");
-  bar.innerHTML = labels.map((label, i) => {
-    const n = i+1, done = step > n, active = step === n;
-    const opacity = active ? 1 : done ? .65 : .28;
-    const bg = done ? "#43e97b" : active ? "#6c63ff" : "transparent";
-    const border = done ? "#43e97b" : active ? "#6c63ff" : "#2a2a3d";
-    const color = done ? "#000" : active ? "#fff" : "#6b6b8a";
-    const checkIcon = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`;
-    const sep = i < 2 ? `<div style="flex:.5;height:1px;background:#2a2a3d;margin:0 5px;"></div>` : "";
-    return `
-      <div style="display:flex;align-items:center;flex:1;opacity:${opacity};transition:opacity .3s;">
-        <div style="display:flex;align-items:center;gap:9px;">
-          <div class="step-dot" style="background:${bg};border:1.5px solid ${border};color:${color};">${done ? checkIcon : n}</div>
-          <span style="font-size:10px;letter-spacing:1px;text-transform:uppercase;">${label}</span>
-        </div>
-      </div>${sep}`;
-  }).join("");
+function initDefaults() {
+  document.getElementById("inv-num").value  = randInv();
+  document.getElementById("inv-date").value = todayStr();
+  document.getElementById("inv-due").value  = plus30();
+  items = [{ id:1, desc:"", qty:1, price:0 }];
+  itemIdCounter = 2;
+  renderItems(); updateTotals();
 }
 
-function switchMode(m) {
-  mode = m;
-  document.getElementById("btn-full").classList.toggle("active", m === "full");
-  document.getElementById("btn-dateOnly").classList.toggle("active", m === "dateOnly");
-  document.getElementById("full-section").style.display = m === "full" ? "block" : "none";
-  document.getElementById("date-section").style.display = m === "dateOnly" ? "block" : "none";
-  document.getElementById("upload-title").textContent = m === "dateOnly" ? "Upload your existing invoice" : "Drop your blank invoice template";
-  document.getElementById("upload-sub").innerHTML = m === "dateOnly"
-    ? "We'll extract the text and only change the dates<br/>.pdf · .docx · .txt"
-    : "Optional — skip to generate from scratch<br/>.pdf · .docx · .txt";
-  document.getElementById("info-box").innerHTML = m === "dateOnly"
-    ? '<strong style="color:#6c63ff;">How it works:</strong> Upload invoice → set new dates → generate. Everything else stays identical.'
-    : '<strong style="color:#6c63ff;">No template?</strong> Skip the upload — we\'ll build a professional invoice from the details below.';
-  document.getElementById("gen-btn").innerHTML = m === "dateOnly"
-    ? `<svg class="icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg> Update Dates &amp; Download`
-    : `<svg class="icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg> Generate Filled Invoice`;
-  hideError(); renderSteps(1);
+function startFromScratch() {
+  initDefaults();
+  document.getElementById("file-pill").style.display = "none";
+  show("screen-form");
+}
+
+function goBack() {
+  document.getElementById("file-input").value = "";
+  show("screen-landing");
 }
 
 async function handleFile(f) {
   if (!f) return;
   const ext = f.name.split(".").pop().toLowerCase();
-  if (!["pdf","docx","txt"].includes(ext)) {
-    showError("Please use .pdf, .docx, or .txt"); return;
+  if (!["pdf","docx","txt"].includes(ext)) { alert("Please upload a .pdf, .docx, or .txt file"); return; }
+  pdfFileName = f.name.replace(/\.[^.]+$/,"");
+  show("screen-scanning");
+  try {
+    const fileText = await extractText(f);
+    if (!fileText.trim()) throw new Error("Could not read text from this file");
+    const res = await fetch("/api/extract", {
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({ fileText }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Extraction failed");
+    populateForm(data.fields, f.name);
+  } catch(err) {
+    show("screen-landing");
+    alert("Could not read your file: "+err.message);
   }
-  currentFile = f;
-  document.getElementById("upload-zone").style.display = "none";
-  document.getElementById("file-pill").style.display = "flex";
-  document.getElementById("file-name").textContent = f.name;
-  document.getElementById("file-size").textContent = (f.size/1024).toFixed(1)+" KB · Ready to send";
-  hideError();
 }
 
-function removeFile() {
-  currentFile = null;
-  document.getElementById("file-input").value = "";
-  document.getElementById("upload-zone").style.display = "block";
-  document.getElementById("file-pill").style.display = "none";
-}
-
-async function extractFileText(file) {
+async function extractText(file) {
   const ext = file.name.split(".").pop().toLowerCase();
   if (ext === "txt") return await file.text();
   if (ext === "pdf") {
-    const arrayBuffer = await file.arrayBuffer();
-    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+    const buf = await file.arrayBuffer();
+    const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
     let text = "";
-    for (let i = 1; i <= pdf.numPages; i++) {
+    for (let i=1; i<=pdf.numPages; i++) {
       const page = await pdf.getPage(i);
       const content = await page.getTextContent();
-      text += content.items.map(item => item.str).join(" ") + "\n";
+      text += content.items.map(it=>it.str).join(" ")+"\n";
     }
     return text;
   }
-  if (ext === "docx") return "[DOCX FILE — extract content and update accordingly]";
+  return "[DOCX file — extract all invoice fields]";
+}
+
+function toDateInput(str) {
+  if (!str) return "";
+  const d = new Date(str);
+  if (!isNaN(d)) return d.toISOString().split("T")[0];
   return "";
 }
 
-function addItem() {
-  items.push({ id: itemIdCounter++, desc: "", qty: 1, price: 0 });
-  renderItems(); updateTotals();
-}
-function removeItem(id) {
-  items = items.filter(i => i.id !== id);
-  renderItems(); updateTotals();
-}
-function updateItem(id, key, val) {
-  const item = items.find(i => i.id === id);
-  if (item) { item[key] = val; updateTotals(); }
+function setVal(id, val) {
+  const el = document.getElementById(id);
+  if (el && val) el.value = val;
 }
 
-const xIcon = `<svg class="icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`;
+function populateForm(f, fileName) {
+  setVal("s-name", f.sellerName); setVal("s-addr", f.sellerAddress);
+  setVal("s-phone", f.sellerPhone); setVal("s-email", f.sellerEmail);
+  setVal("inv-num", f.invoiceNumber || randInv());
+  setVal("inv-date", toDateInput(f.invoiceDate) || todayStr());
+  setVal("inv-due", toDateInput(f.dueDate) || plus30());
+  setVal("inv-desc", f.description);
+  if (f.currency) {
+    const sel = document.getElementById("currency");
+    for (let opt of sel.options) { if (opt.value === f.currency) { sel.value = f.currency; break; } }
+  }
+  setVal("b-name", f.buyerName); setVal("b-addr", f.buyerAddress);
+  setVal("b-email", f.buyerEmail); setVal("b-phone", f.buyerPhone);
+  if (f.items && f.items.length) {
+    items = f.items.map((it,i) => ({ id:i+1, desc:it.description||"", qty:parseFloat(it.qty)||1, price:parseFloat(it.unitPrice)||0 }));
+    itemIdCounter = items.length+1;
+  } else {
+    items = [{ id:1, desc:"", qty:1, price:0 }]; itemIdCounter = 2;
+  }
+  if (f.vatRate) document.getElementById("vat-rate").value = f.vatRate;
+  if (f.discount) document.getElementById("discount").value = f.discount;
+  setVal("p-bank", f.bankName); setVal("p-acct", f.accountNumber);
+  setVal("p-aname", f.accountName); setVal("p-swift", f.swiftCode);
+  setVal("notes", f.notes);
+  renderItems(); updateTotals();
+  document.getElementById("pill-name").textContent = fileName;
+  document.getElementById("file-pill").style.display = "flex";
+  show("screen-form");
+}
+
+function addItem() { items.push({ id:itemIdCounter++, desc:"", qty:1, price:0 }); renderItems(); updateTotals(); }
+function removeItem(id) { if (items.length===1) return; items=items.filter(i=>i.id!==id); renderItems(); updateTotals(); }
+function updateItem(id, key, val) { const item=items.find(i=>i.id===id); if(item){ item[key]=val; updateTotals(); } }
+
+const XI = `<svg class="icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`;
 
 function renderItems() {
-  document.getElementById("items-list").innerHTML = items.map(it => `
+  document.getElementById("items-list").innerHTML = items.map(it=>`
     <div class="item-row">
-      <input class="inp" type="text" placeholder="Service or product description" value="${it.desc}"
-        oninput="updateItem(${it.id},'desc',this.value)" />
-      <input class="inp" type="number" min="0" value="${it.qty}"
-        oninput="updateItem(${it.id},'qty',parseFloat(this.value)||0)" />
-      <input class="inp" type="number" min="0" step="100" value="${it.price}"
-        oninput="updateItem(${it.id},'price',parseFloat(this.value)||0)" />
-      <div style="font-size:13px;font-weight:600;color:#43e97b;text-align:right;padding:9px 4px;" id="row-total-${it.id}">
-        ${fmt(it.qty*it.price)}
-      </div>
-      <button class="rm-btn" onclick="removeItem(${it.id})" style="width:32px;height:32px;">${xIcon}</button>
+      <input class="inp" type="text" placeholder="Description" value="${esc(it.desc)}" oninput="updateItem(${it.id},'desc',this.value)" />
+      <input class="inp" type="number" min="0" value="${it.qty}" oninput="updateItem(${it.id},'qty',parseFloat(this.value)||0)" />
+      <input class="inp" type="number" min="0" step="100" value="${it.price}" oninput="updateItem(${it.id},'price',parseFloat(this.value)||0)" />
+      <div style="font-size:13px;font-weight:600;color:#43e97b;text-align:right;padding:9px 4px;" id="rt-${it.id}">${fmt(it.qty*it.price)}</div>
+      <button class="rm-btn" onclick="removeItem(${it.id})" style="width:32px;height:32px;">${XI}</button>
     </div>`).join("");
 
-  document.getElementById("items-list-mobile").innerHTML = items.map((it, idx) => `
+  document.getElementById("items-list-mobile").innerHTML = items.map((it,idx)=>`
     <div class="item-card">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
         <span style="font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:#6b6b8a;">Item ${idx+1}</span>
-        <button class="rm-btn" onclick="removeItem(${it.id})" style="width:28px;height:28px;">${xIcon}</button>
+        <button class="rm-btn" onclick="removeItem(${it.id})" style="width:28px;height:28px;">${XI}</button>
       </div>
       <div style="display:flex;flex-direction:column;gap:10px;">
-        <div class="field"><label>Description</label>
-          <input class="inp" type="text" placeholder="Service or product" value="${it.desc}"
-            oninput="updateItem(${it.id},'desc',this.value)" />
-        </div>
+        <div class="field"><label>Description</label><input class="inp" type="text" placeholder="Service or product" value="${esc(it.desc)}" oninput="updateItem(${it.id},'desc',this.value)" /></div>
         <div class="item-g2">
-          <div class="field"><label>Qty</label>
-            <input class="inp" type="number" min="0" value="${it.qty}"
-              oninput="updateItem(${it.id},'qty',parseFloat(this.value)||0)" />
-          </div>
-          <div class="field"><label>Unit Price</label>
-            <input class="inp" type="number" min="0" step="100" value="${it.price}"
-              oninput="updateItem(${it.id},'price',parseFloat(this.value)||0)" />
-          </div>
+          <div class="field"><label>Qty</label><input class="inp" type="number" min="0" value="${it.qty}" oninput="updateItem(${it.id},'qty',parseFloat(this.value)||0)" /></div>
+          <div class="field"><label>Unit Price</label><input class="inp" type="number" min="0" step="100" value="${it.price}" oninput="updateItem(${it.id},'price',parseFloat(this.value)||0)" /></div>
         </div>
         <div style="text-align:right;font-size:14px;font-weight:600;color:#43e97b;">= ${fmt(it.qty*it.price)}</div>
       </div>
@@ -581,116 +511,91 @@ function renderItems() {
 }
 
 function updateTotals() {
-  const subtotal = items.reduce((s,it) => s + it.qty*it.price, 0);
-  const vatRate  = parseFloat(document.getElementById("vat-rate").value) || 0;
-  const discount = parseFloat(document.getElementById("discount").value) || 0;
-  const vatAmt   = subtotal * (vatRate/100);
-  const total    = subtotal + vatAmt - discount;
+  const subtotal = items.reduce((s,it)=>s+it.qty*it.price, 0);
+  const vatRate  = parseFloat(document.getElementById("vat-rate").value)||0;
+  const discount = parseFloat(document.getElementById("discount").value)||0;
+  const vatAmt   = subtotal*(vatRate/100);
+  const total    = subtotal+vatAmt-discount;
   const curr     = document.getElementById("currency").value;
-
   document.getElementById("t-sub").textContent   = fmt(subtotal);
   document.getElementById("t-vat").textContent   = fmt(vatAmt);
   document.getElementById("t-total").textContent = fmt(total);
   document.getElementById("t-words").textContent = numberToWords(total, curr);
-
-  items.forEach(it => {
-    const el = document.getElementById(`row-total-${it.id}`);
-    if (el) el.textContent = fmt(it.qty * it.price);
-  });
+  items.forEach(it=>{ const el=document.getElementById("rt-"+it.id); if(el) el.textContent=fmt(it.qty*it.price); });
 }
-
-function fullPrompt() {
-  const sym      = getSym();
-  const currency = document.getElementById("currency").value;
-  const subtotal = items.reduce((s,it) => s + it.qty*it.price, 0);
-  const vatRate  = parseFloat(document.getElementById("vat-rate").value) || 0;
-  const discount = parseFloat(document.getElementById("discount").value) || 0;
-  const vatAmt   = subtotal * (vatRate/100);
-  const total    = subtotal + vatAmt - discount;
-
-  const rows = items.filter(i=>i.desc.trim()).map((it,n)=>
-    `${n+1}. ${it.desc} | Qty:${it.qty} | Unit:${fmt(it.price)} | Total:${fmt(it.qty*it.price)}`
-  ).join("\n");
-
-  return `Generate a complete professional invoice as a single self-contained HTML page.
-
-SELLER: ${v("s-name")||"N/A"} | ${v("s-addr")} | ${v("s-phone")} | ${v("s-email")}
-BUYER:  ${v("b-name")||"N/A"} | ${v("b-addr")} | ${v("b-email")} | ${v("b-phone")}
-INVOICE #: ${v("inv-num")} | DATE: ${v("inv-date")} | DUE: ${v("inv-due")} | CURRENCY: ${currency}
-
-LINE ITEMS:
-${rows||"No items"}
-
-SUBTOTAL: ${fmt(subtotal)} | VAT ${vatRate}%: ${fmt(vatAmt)} | DISCOUNT: ${fmt(discount)} | TOTAL: ${fmt(total)}
-AMOUNT IN WORDS: ${numberToWords(total, currency)}
-
-PAYMENT: ${v("p-bank")||"N/A"} | Acct: ${v("p-acct")||"N/A"} | Name: ${v("p-aname")||"N/A"} | SWIFT: ${v("p-swift")||"N/A"}
-NOTES: ${v("notes")||"Payment due within 30 days. Thank you for your business."}
-
-Design: white background, #1e40af blue accents, clean professional layout, print-ready, Google Font, fully inline CSS.
-Output ONLY raw HTML starting with <!DOCTYPE html>. Zero markdown. Zero explanation.`;
-}
-
-function datePrompt() {
-  return `Update ONLY the dates in this existing invoice and return a complete filled HTML invoice.
-NEW INVOICE DATE: ${v("new-date")}
-NEW DUE DATE: ${v("new-due")}
-Keep ALL other details (seller, buyer, amounts, items, invoice number) exactly the same.
-Output ONLY raw HTML starting with <!DOCTYPE html>. Zero markdown.`;
-}
-
-function v(id) { return (document.getElementById(id)||{}).value || ""; }
 
 async function generate() {
   hideError();
-  document.getElementById("form-section").style.display = "none";
-  document.getElementById("loading-section").style.display = "flex";
-  document.getElementById("loading-text").textContent = mode === "dateOnly" ? "Swapping dates…" : "Filling your invoice…";
+  const subtotal = items.reduce((s,it)=>s+it.qty*it.price,0);
+  const vatRate  = parseFloat(v("vat-rate"))||0;
+  const discount = parseFloat(v("discount"))||0;
+  const vatAmt   = subtotal*(vatRate/100);
+  const total    = subtotal+vatAmt-discount;
+  const currency = v("currency")||"NGN";
+  const sym      = getSym();
+
+  const fields = {
+    sellerName:v("s-name"), sellerAddress:v("s-addr"), sellerPhone:v("s-phone"), sellerEmail:v("s-email"),
+    buyerName:v("b-name"), buyerAddress:v("b-addr"), buyerEmail:v("b-email"), buyerPhone:v("b-phone"),
+    invoiceNumber:v("inv-num"), invoiceDate:v("inv-date"), dueDate:v("inv-due"),
+    description:v("inv-desc"), currency, currencySymbol:sym,
+    items: items.map(it=>({ description:it.desc, qty:it.qty, unitPrice:it.price, total:it.qty*it.price })),
+    subtotal, vatRate, vatAmount:vatAmt, discount, total,
+    amountInWords: numberToWords(total, currency),
+    bankName:v("p-bank"), accountNumber:v("p-acct"), accountName:v("p-aname"), swiftCode:v("p-swift"),
+    notes:v("notes"),
+  };
+
+  show("screen-generating");
+  const statuses = ["AI is designing your invoice...","Styling and formatting...","Converting to PDF..."];
+  let si=0;
+  const statusEl = document.getElementById("gen-status");
+  const interval = setInterval(()=>{ si=(si+1)%statuses.length; statusEl.textContent=statuses[si]; }, 2000);
 
   try {
-    let fileText = "";
-    if (currentFile) fileText = await extractFileText(currentFile);
-
-    const prompt = mode === "dateOnly" ? datePrompt() : fullPrompt();
-
     const res = await fetch("/api/generate", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ prompt, fileText }),
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({ fields }),
     });
-
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error || "Server error");
-    if (!data.html) throw new Error("No HTML returned. Please try again.");
-
-    const blob = new Blob([data.html], { type: "text/html" });
-    const url  = URL.createObjectURL(blob);
-    document.getElementById("dl-link").href     = url;
-    document.getElementById("dl-link").download = `invoice-${v("inv-num")||"filled"}.html`;
-
-    document.getElementById("loading-section").style.display = "none";
-    document.getElementById("result-section").style.display  = "block";
-    renderSteps(3);
+    clearInterval(interval);
+    if (!res.ok) throw new Error(data.error||"Generation failed");
+    if (!data.pdf) throw new Error("No PDF returned. Please try again.");
+    pdfBase64 = data.pdf;
+    show("screen-result");
   } catch(err) {
-    document.getElementById("loading-section").style.display = "none";
-    document.getElementById("form-section").style.display    = "block";
-    showError(err.message || "Something went wrong. Please try again.");
+    clearInterval(interval);
+    show("screen-form");
+    showError(err.message);
   }
 }
 
-function resetAll() {
-  document.getElementById("result-section").style.display = "none";
-  document.getElementById("form-section").style.display   = "block";
-  renderSteps(1); hideError();
+function downloadPDF() {
+  if (!pdfBase64) return;
+  const bytes = atob(pdfBase64);
+  const arr = new Uint8Array(bytes.length);
+  for (let i=0; i<bytes.length; i++) arr[i]=bytes.charCodeAt(i);
+  const blob = new Blob([arr], { type:"application/pdf" });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement("a");
+  a.href=url; a.download=(pdfFileName||"invoice")+".pdf"; a.click();
+  URL.revokeObjectURL(url);
 }
 
-function showError(msg) {
-  document.getElementById("error-box").style.display = "flex";
-  document.getElementById("error-msg").textContent   = msg;
+function resetAll() {
+  pdfBase64=null; pdfFileName="invoice";
+  document.getElementById("file-input").value="";
+  initDefaults();
+  ["s-name","s-addr","s-phone","s-email","b-name","b-addr","b-email","b-phone","inv-desc","p-bank","p-acct","p-aname","p-swift","notes"]
+    .forEach(id=>{ const el=document.getElementById(id); if(el) el.value=""; });
+  show("screen-landing");
 }
-function hideError() {
-  document.getElementById("error-box").style.display = "none";
-}
+
+function showError(msg) { document.getElementById("error-box").style.display="flex"; document.getElementById("error-msg").textContent=msg; }
+function hideError() { document.getElementById("error-box").style.display="none"; }
+
+initDefaults();
+show("screen-landing");
 </script>
 </body>
 </html>
