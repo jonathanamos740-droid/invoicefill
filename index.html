@@ -1,0 +1,673 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>InvoiceFill — AI Invoice Generator</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <!-- PDF.js for reading PDFs client-side -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: #0a0a0f; color: #e8e8f0; font-family: 'DM Mono', monospace; overflow-x: hidden; }
+    input, select, textarea, button { font-family: 'DM Mono', monospace; }
+    input[type=number]::-webkit-inner-spin-button { opacity: .4; }
+    ::placeholder { color: #4a4a6a; }
+    select option { background: #13131a; }
+    a { text-decoration: none; }
+
+    @keyframes spin   { to { transform: rotate(360deg); } }
+    @keyframes fadeUp { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:translateY(0); } }
+    .fade-up { animation: fadeUp .35s ease both; }
+
+    .bg-grid {
+      position: fixed; inset: 0; pointer-events: none; z-index: 0;
+      background-image: linear-gradient(#2a2a3d30 1px,transparent 1px), linear-gradient(90deg,#2a2a3d30 1px,transparent 1px);
+      background-size: 60px 60px;
+    }
+    .bg-glow-top {
+      position: fixed; top: -180px; left: -180px; width: 520px; height: 520px;
+      pointer-events: none; z-index: 0;
+      background: radial-gradient(circle, rgba(108,99,255,.13) 0%, transparent 70%);
+    }
+    .bg-glow-bottom {
+      position: fixed; bottom: -140px; right: -100px; width: 460px; height: 460px;
+      pointer-events: none; z-index: 0;
+      background: radial-gradient(circle, rgba(255,101,132,.09) 0%, transparent 70%);
+    }
+
+    .wrap { position: relative; z-index: 1; max-width: 920px; margin: 0 auto; padding: 44px 28px 100px; }
+    @media(max-width:640px) { .wrap { padding: 24px 16px 80px; } }
+
+    .inp {
+      background: #13131a; border: 1px solid #2a2a3d; border-radius: 10px;
+      padding: 12px 14px; color: #e8e8f0; font-size: 13px;
+      outline: none; width: 100%; transition: border-color .2s, background .2s, box-shadow .2s;
+    }
+    .inp:focus { border-color: #6c63ff; background: #1c1c27; box-shadow: 0 0 0 3px rgba(108,99,255,.12); }
+
+    .field { display: flex; flex-direction: column; gap: 7px; }
+    .field label { font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase; color: #6b6b8a; }
+
+    .section-label { display: flex; align-items: center; gap: 10px; margin: 28px 0 16px; }
+    .section-label span { font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: #6b6b8a; white-space: nowrap; }
+    .section-label hr { flex: 1; border: none; border-top: 1px solid #2a2a3d; }
+
+    .g2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 4px; }
+    @media(max-width:640px) { .g2 { grid-template-columns: 1fr; } }
+
+    .mode-btn {
+      flex: 1; padding: 11px 16px; background: transparent; border: none; border-radius: 10px;
+      color: #6b6b8a; font-size: 12px; cursor: pointer; transition: all .2s;
+    }
+    .mode-btn.active { background: linear-gradient(135deg,#6c63ff,#8b5cf6); color: #fff; font-weight: 600; }
+    @media(max-width:640px) { .mode-btn { padding: 10px 8px; font-size: 11px; } }
+
+    .step-dot {
+      width: 26px; height: 26px; border-radius: 50%; display: flex; align-items: center;
+      justify-content: center; font-size: 11px; font-weight: 600; flex-shrink: 0; transition: all .3s;
+    }
+
+    .upload-zone {
+      border: 2px dashed #2a2a3d; border-radius: 20px; padding: 50px 28px;
+      text-align: center; cursor: pointer; background: #13131a; transition: all .2s;
+    }
+    .upload-zone:hover, .upload-zone.drag { border-color: #6c63ff; background: #1c1c27; }
+    @media(max-width:640px) { .upload-zone { padding: 32px 16px; } }
+
+    .choose-btn {
+      display: inline-flex; align-items: center; gap: 7px; padding: 9px 20px;
+      background: rgba(108,99,255,.15); border: 1px solid rgba(108,99,255,.4); color: #6c63ff;
+      border-radius: 8px; font-size: 12px; cursor: pointer; transition: background .2s;
+    }
+    .choose-btn:hover { background: rgba(108,99,255,.25); }
+
+    .file-pill {
+      display: flex; align-items: center; gap: 12px; padding: 14px 16px; margin-bottom: 14px;
+      background: #13131a; border: 1px solid rgba(67,233,123,.3); border-radius: 14px;
+    }
+
+    .totals-box { background: #13131a; border: 1px solid #2a2a3d; border-radius: 14px; padding: 18px 22px; margin-bottom: 20px; }
+    .totals-row { display: flex; justify-content: space-between; align-items: center; padding: 7px 0; font-size: 13px; border-bottom: 1px solid #1c1c27; flex-wrap: wrap; gap: 8px; }
+
+    .words-box {
+      background: rgba(108,99,255,.07); border: 1px solid rgba(108,99,255,.17);
+      border-radius: 10px; padding: 12px 15px; font-size: 12px; color: #a5b4fc;
+      font-style: italic; margin-bottom: 24px; line-height: 1.6;
+    }
+
+    .info-box {
+      background: rgba(108,99,255,.07); border: 1px solid rgba(108,99,255,.17);
+      border-radius: 10px; padding: 12px 15px; font-size: 12px; color: #6b6b8a;
+      line-height: 1.6; margin-bottom: 8px;
+    }
+
+    .item-row { display: grid; grid-template-columns: 2fr 70px 140px 110px 38px; gap: 8px; align-items: center; margin-bottom: 8px; }
+    .item-hdr { display: grid; grid-template-columns: 2fr 70px 140px 110px 38px; gap: 8px; padding: 5px 0; border-bottom: 1px solid #2a2a3d; margin-bottom: 8px; }
+
+    .rm-btn {
+      background: none; border: 1px solid #2a2a3d; color: #6b6b8a;
+      border-radius: 6px; cursor: pointer; transition: all .2s; display: flex; align-items: center; justify-content: center;
+    }
+    .rm-btn:hover { border-color: #ff6584; color: #ff6584; }
+
+    .add-item-btn {
+      background: none; border: 1px dashed #2a2a3d; color: #6b6b8a;
+      padding: 9px 18px; border-radius: 8px; font-size: 12px; cursor: pointer;
+      display: inline-flex; align-items: center; gap: 7px; margin-top: 4px; margin-bottom: 24px; transition: all .2s;
+    }
+    .add-item-btn:hover { border-color: #6c63ff; color: #6c63ff; }
+
+    .gen-btn {
+      width: 100%; padding: 18px 32px; background: linear-gradient(135deg,#6c63ff,#8b5cf6);
+      border: none; border-radius: 14px; color: #fff; font-weight: 800; font-size: 17px;
+      letter-spacing: -.3px; cursor: pointer; display: flex; align-items: center; justify-content: center;
+      gap: 10px; transition: all .25s;
+    }
+    .gen-btn:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 14px 40px rgba(108,99,255,.42); }
+    .gen-btn:disabled { opacity: .5; cursor: not-allowed; }
+    @media(max-width:640px) { .gen-btn { padding: 15px; font-size: 15px; } }
+
+    .dl-btn {
+      display: inline-flex; align-items: center; gap: 8px; padding: 14px 28px;
+      background: linear-gradient(135deg,#43e97b,#38d9a9); color: #000;
+      border-radius: 10px; font-weight: 700; font-size: 14px; transition: all .2s;
+    }
+    .dl-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 28px rgba(67,233,123,.4); }
+
+    .err-box {
+      background: rgba(255,101,132,.1); border: 1px solid rgba(255,101,132,.3);
+      border-radius: 10px; padding: 12px 15px; font-size: 12px; color: #ff6584;
+      display: flex; align-items: flex-start; gap: 9px; margin-bottom: 14px;
+    }
+
+    /* Mobile item cards */
+    .item-card { background: #13131a; border: 1px solid #2a2a3d; border-radius: 12px; padding: 14px; margin-bottom: 10px; }
+    .item-g2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  </style>
+</head>
+<body>
+
+<div class="bg-grid"></div>
+<div class="bg-glow-top"></div>
+<div class="bg-glow-bottom"></div>
+
+<div class="wrap">
+
+  <!-- Header -->
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:52px;">
+    <div style="display:flex;align-items:center;gap:11px;">
+      <div style="width:40px;height:40px;border-radius:10px;background:linear-gradient(135deg,#6c63ff,#ff6584);display:flex;align-items:center;justify-content:center;font-size:19px;">📄</div>
+      <span style="font-family:'Syne',sans-serif;font-weight:800;font-size:22px;letter-spacing:-.5px;">Invoice<span style="color:#6c63ff;">Fill</span></span>
+    </div>
+    <div style="font-size:10px;letter-spacing:1px;text-transform:uppercase;padding:4px 12px;border-radius:20px;background:rgba(108,99,255,.14);border:1px solid rgba(108,99,255,.3);color:#6c63ff;">AI-Powered</div>
+  </div>
+
+  <!-- Hero -->
+  <h1 style="font-family:'Syne',sans-serif;font-weight:800;font-size:clamp(28px,5vw,50px);line-height:1.1;letter-spacing:-1.5px;margin-bottom:12px;">
+    Fill invoices<br /><span style="color:#6c63ff;">in seconds.</span>
+  </h1>
+  <p style="color:#6b6b8a;font-size:13px;line-height:1.7;max-width:480px;margin-bottom:32px;">
+    Upload a blank template or fill from scratch. Need to just swap a date? We handle that too.
+  </p>
+
+  <!-- Mode Toggle -->
+  <div style="display:flex;gap:4px;background:#13131a;border:1px solid #2a2a3d;border-radius:14px;padding:4px;margin-bottom:28px;">
+    <button class="mode-btn active" id="btn-full" onclick="switchMode('full')">✨ Fill New Invoice</button>
+    <button class="mode-btn" id="btn-dateOnly" onclick="switchMode('dateOnly')">📅 Change Date Only</button>
+  </div>
+
+  <!-- Steps -->
+  <div style="display:flex;align-items:center;background:#13131a;border:1px solid #2a2a3d;border-radius:14px;padding:15px 22px;margin-bottom:32px;" id="steps-bar">
+    <!-- rendered by JS -->
+  </div>
+
+  <!-- Result -->
+  <div id="result-section" style="display:none;" class="fade-up">
+    <div style="background:#13131a;border:1px solid rgba(67,233,123,.3);border-radius:20px;padding:40px 32px;text-align:center;">
+      <div style="font-size:56px;margin-bottom:14px;">🎉</div>
+      <div style="font-family:'Syne',sans-serif;font-weight:800;font-size:30px;color:#43e97b;margin-bottom:8px;letter-spacing:-.5px;">Invoice Ready!</div>
+      <p style="color:#6b6b8a;font-size:13px;margin-bottom:28px;line-height:1.6;">Download below. Open in browser → Ctrl+P → Save as PDF.</p>
+      <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;">
+        <a class="dl-btn" id="dl-link" href="#" download="invoice.html">⬇ Download Invoice</a>
+        <button onclick="resetAll()" style="display:inline-flex;align-items:center;gap:8px;padding:14px 22px;background:none;border:1px solid #2a2a3d;color:#6b6b8a;border-radius:10px;font-size:12px;cursor:pointer;">↺ Fill Another</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Loading -->
+  <div id="loading-section" style="display:none;flex-direction:column;align-items:center;gap:16px;padding:60px 0;text-align:center;">
+    <div style="width:40px;height:40px;border:3px solid #2a2a3d;border-top-color:#6c63ff;border-radius:50%;animation:spin .8s linear infinite;"></div>
+    <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:20px;" id="loading-text">Filling your invoice…</div>
+    <div style="font-size:12px;color:#6b6b8a;">AI is working on your document</div>
+  </div>
+
+  <!-- Form -->
+  <div id="form-section" class="fade-up">
+
+    <!-- Upload zone -->
+    <div class="upload-zone" id="upload-zone" onclick="document.getElementById('file-input').click()"
+      ondragover="event.preventDefault();this.classList.add('drag')"
+      ondragleave="this.classList.remove('drag')"
+      ondrop="event.preventDefault();this.classList.remove('drag');handleFile(event.dataTransfer.files[0])">
+      <div style="font-size:44px;margin-bottom:12px;">📂</div>
+      <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:18px;margin-bottom:8px;" id="upload-title">Drop your blank invoice template</div>
+      <div style="color:#6b6b8a;font-size:12px;margin-bottom:18px;line-height:1.7;" id="upload-sub">Optional — skip to generate from scratch<br/>.docx · .pdf · .txt</div>
+      <div class="choose-btn" onclick="event.stopPropagation();document.getElementById('file-input').click()">⬆ Choose File</div>
+      <input type="file" id="file-input" accept=".pdf,.docx,.txt" style="display:none" onchange="handleFile(this.files[0])" />
+    </div>
+
+    <!-- File pill -->
+    <div class="file-pill" id="file-pill" style="display:none;">
+      <div style="width:40px;height:40px;flex-shrink:0;border-radius:10px;font-size:19px;background:rgba(67,233,123,.1);display:flex;align-items:center;justify-content:center;">📄</div>
+      <div style="flex:1;min-width:0;">
+        <div style="font-family:'Syne',sans-serif;font-weight:600;font-size:13px;color:#43e97b;margin-bottom:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" id="file-name"></div>
+        <div style="font-size:11px;color:#6b6b8a;" id="file-size"></div>
+      </div>
+      <button class="rm-btn" onclick="removeFile()" style="width:32px;height:32px;">✕</button>
+    </div>
+
+    <!-- Info -->
+    <div class="info-box" id="info-box">
+      <strong style="color:#6c63ff;">No template?</strong> Skip the upload — we'll build a professional invoice from the details below.
+    </div>
+
+    <!-- Date Only section -->
+    <div id="date-section" style="display:none;">
+      <div class="section-label"><span>New Dates</span><hr/></div>
+      <div class="g2">
+        <div class="field"><label>New Invoice Date</label><input class="inp" type="date" id="new-date" /></div>
+        <div class="field"><label>New Due Date</label><input class="inp" type="date" id="new-due" /></div>
+      </div>
+    </div>
+
+    <!-- Full Form section -->
+    <div id="full-section">
+      <div class="section-label"><span>Your Company (Seller)</span><hr/></div>
+      <div class="g2">
+        <div class="field"><label>Company Name</label><input class="inp" type="text" id="s-name" placeholder="Acme Ltd." /></div>
+        <div class="field"><label>Address</label><input class="inp" type="text" id="s-addr" placeholder="123 Main St, Lagos" /></div>
+        <div class="field"><label>Phone</label><input class="inp" type="tel" id="s-phone" placeholder="+234 800 000 0000" /></div>
+        <div class="field"><label>Email</label><input class="inp" type="email" id="s-email" placeholder="billing@acme.com" /></div>
+      </div>
+
+      <div class="section-label"><span>Invoice Details</span><hr/></div>
+      <div class="g2">
+        <div class="field"><label>Invoice Number</label><input class="inp" type="text" id="inv-num" /></div>
+        <div class="field"><label>Currency</label>
+          <select class="inp" id="currency" onchange="updateTotals()">
+            <option value="NGN" data-sym="₦">NGN — Nigerian Naira</option>
+            <option value="USD" data-sym="$">USD — US Dollar</option>
+            <option value="GBP" data-sym="£">GBP — British Pound</option>
+            <option value="EUR" data-sym="€">EUR — Euro</option>
+            <option value="GHS" data-sym="₵">GHS — Ghanaian Cedi</option>
+            <option value="KES" data-sym="KSh">KES — Kenyan Shilling</option>
+            <option value="ZAR" data-sym="R">ZAR — South African Rand</option>
+          </select>
+        </div>
+        <div class="field"><label>Invoice Date</label><input class="inp" type="date" id="inv-date" /></div>
+        <div class="field"><label>Due Date</label><input class="inp" type="date" id="inv-due" /></div>
+      </div>
+
+      <div class="section-label"><span>Buyer / Client</span><hr/></div>
+      <div class="g2">
+        <div class="field"><label>Client Name</label><input class="inp" type="text" id="b-name" placeholder="Global Corp Ltd." /></div>
+        <div class="field"><label>Address</label><input class="inp" type="text" id="b-addr" placeholder="456 Commerce Ave, Abuja" /></div>
+        <div class="field"><label>Email</label><input class="inp" type="email" id="b-email" placeholder="accounts@client.com" /></div>
+        <div class="field"><label>Phone</label><input class="inp" type="tel" id="b-phone" placeholder="+234 900 000 0000" /></div>
+      </div>
+
+      <div class="section-label"><span>Line Items</span><hr/></div>
+      <div id="items-desktop" style="display:block;">
+        <div class="item-hdr">
+          <span style="font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:#6b6b8a;">Description</span>
+          <span style="font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:#6b6b8a;">Qty</span>
+          <span style="font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:#6b6b8a;">Unit Price</span>
+          <span style="font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:#6b6b8a;text-align:right;">Total</span>
+          <span></span>
+        </div>
+        <div id="items-list"></div>
+      </div>
+      <div id="items-mobile" style="display:none;">
+        <div id="items-list-mobile"></div>
+      </div>
+
+      <button class="add-item-btn" onclick="addItem()">+ Add Item</button>
+
+      <!-- Totals -->
+      <div class="totals-box">
+        <div class="totals-row"><span style="color:#6b6b8a;">Subtotal</span><span id="t-sub">₦0.00</span></div>
+        <div class="totals-row">
+          <span style="color:#6b6b8a;display:flex;align-items:center;gap:7px;">
+            VAT <input class="inp" type="number" id="vat-rate" value="7.5" min="0" max="100" step="0.5" style="width:58px;padding:3px 7px;font-size:12px;text-align:center;border-radius:6px;" oninput="updateTotals()" /> %
+          </span>
+          <span id="t-vat">₦0.00</span>
+        </div>
+        <div class="totals-row">
+          <span style="color:#6b6b8a;">Discount</span>
+          <input class="inp" type="number" id="discount" value="0" min="0" step="100" style="width:120px;padding:4px 10px;font-size:12px;text-align:right;border-radius:6px;" oninput="updateTotals()" />
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;padding-top:14px;margin-top:4px;font-family:'Syne',sans-serif;font-weight:800;font-size:22px;color:#6c63ff;">
+          <span>Total Due</span><span id="t-total">₦0.00</span>
+        </div>
+      </div>
+
+      <!-- Words -->
+      <div class="words-box">
+        <span style="color:#6b6b8a;font-size:9px;letter-spacing:1.5px;text-transform:uppercase;font-style:normal;">Amount in Words — </span>
+        <span id="t-words">Zero Nairas Only</span>
+      </div>
+
+      <div class="section-label"><span>Payment Details</span><hr/></div>
+      <div class="g2">
+        <div class="field"><label>Bank Name</label><input class="inp" type="text" id="p-bank" placeholder="First Bank of Nigeria" /></div>
+        <div class="field"><label>Account Number</label><input class="inp" type="text" id="p-acct" placeholder="0123456789" /></div>
+        <div class="field"><label>Account Name</label><input class="inp" type="text" id="p-aname" placeholder="Acme Ltd." /></div>
+        <div class="field"><label>Sort Code / SWIFT</label><input class="inp" type="text" id="p-swift" placeholder="011" /></div>
+      </div>
+
+      <div class="section-label"><span>Notes / Terms</span><hr/></div>
+      <textarea class="inp" id="notes" placeholder="Payment due within 30 days. Thank you for your business." style="resize:vertical;min-height:80px;line-height:1.6;"></textarea>
+    </div>
+
+    <!-- Error + Generate -->
+    <div style="margin-top:28px;">
+      <div class="err-box" id="error-box" style="display:none;"><span>⚠</span><span id="error-msg"></span></div>
+      <button class="gen-btn" id="gen-btn" onclick="generate()">✨ Generate Filled Invoice</button>
+    </div>
+
+  </div><!-- /form-section -->
+</div><!-- /wrap -->
+
+<script>
+// ── PDF.js setup ──────────────────────────────────────────────────────────────
+pdfjsLib.GlobalWorkerOptions.workerSrc =
+  "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+
+// ── State ─────────────────────────────────────────────────────────────────────
+let mode = "full";
+let currentFile = null;
+let items = [{ id: 1, desc: "", qty: 1, price: 0 }];
+let itemIdCounter = 2;
+const isMobile = () => window.innerWidth < 640;
+
+// ── Currency helpers ──────────────────────────────────────────────────────────
+const CURRENCY_NAMES = {
+  NGN:["Naira","Kobo"], USD:["Dollar","Cent"], GBP:["Pound","Penny"],
+  EUR:["Euro","Cent"],  GHS:["Cedi","Pesewa"], KES:["Shilling","Cent"], ZAR:["Rand","Cent"],
+};
+const ONES = ["","One","Two","Three","Four","Five","Six","Seven","Eight","Nine",
+  "Ten","Eleven","Twelve","Thirteen","Fourteen","Fifteen","Sixteen","Seventeen","Eighteen","Nineteen"];
+const TENS = ["","","Twenty","Thirty","Forty","Fifty","Sixty","Seventy","Eighty","Ninety"];
+function sayNum(n) {
+  if (!n) return "";
+  if (n < 20)   return ONES[n];
+  if (n < 100)  return TENS[Math.floor(n/10)] + (n%10 ? " "+ONES[n%10] : "");
+  if (n < 1000) return ONES[Math.floor(n/100)]+" Hundred"+(n%100?" "+sayNum(n%100):"");
+  if (n < 1e6)  return sayNum(Math.floor(n/1000))+" Thousand"+(n%1000?" "+sayNum(n%1000):"");
+  if (n < 1e9)  return sayNum(Math.floor(n/1e6))+" Million"+(n%1e6?" "+sayNum(n%1e6):"");
+  return sayNum(Math.floor(n/1e9))+" Billion"+(n%1e9?" "+sayNum(n%1e9):"");
+}
+function numberToWords(amount, curr) {
+  const [main, sub] = (amount||0).toFixed(2).split(".").map(Number);
+  const names = CURRENCY_NAMES[curr]||["Unit","Sub"];
+  if (!main && !sub) return `Zero ${names[0]}s Only`;
+  let r = sayNum(main)+" "+names[0]+(main!==1?"s":"");
+  if (sub) r += " and "+sayNum(sub)+" "+names[1]+(sub!==1?"s":"");
+  return r+" Only";
+}
+function getSym() {
+  const sel = document.getElementById("currency");
+  return sel.options[sel.selectedIndex].dataset.sym || "₦";
+}
+function fmt(n) {
+  return getSym() + (n||0).toLocaleString("en-NG",{minimumFractionDigits:2,maximumFractionDigits:2});
+}
+function todayStr() { return new Date().toISOString().split("T")[0]; }
+function plus30()   { const d=new Date(); d.setDate(d.getDate()+30); return d.toISOString().split("T")[0]; }
+function randInv()  { return "INV-"+new Date().getFullYear()+"-"+String(Math.floor(Math.random()*900)+100); }
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+document.getElementById("inv-num").value  = randInv();
+document.getElementById("inv-date").value = todayStr();
+document.getElementById("inv-due").value  = plus30();
+document.getElementById("new-date").value = todayStr();
+document.getElementById("new-due").value  = plus30();
+renderItems(); updateTotals(); renderSteps(1);
+checkMobile();
+window.addEventListener("resize", checkMobile);
+
+function checkMobile() {
+  document.getElementById("items-desktop").style.display = isMobile() ? "none" : "block";
+  document.getElementById("items-mobile").style.display  = isMobile() ? "block" : "none";
+}
+
+// ── Steps ─────────────────────────────────────────────────────────────────────
+function renderSteps(step) {
+  const labels = ["Upload","Fill","Download"];
+  const bar = document.getElementById("steps-bar");
+  bar.innerHTML = labels.map((label, i) => {
+    const n = i+1, done = step > n, active = step === n;
+    const opacity = active ? 1 : done ? .65 : .28;
+    const bg = done ? "#43e97b" : active ? "#6c63ff" : "transparent";
+    const border = done ? "#43e97b" : active ? "#6c63ff" : "#2a2a3d";
+    const color = done ? "#000" : active ? "#fff" : "#6b6b8a";
+    const sep = i < 2 ? `<div style="flex:.5;height:1px;background:#2a2a3d;margin:0 5px;"></div>` : "";
+    return `
+      <div style="display:flex;align-items:center;flex:1;opacity:${opacity};transition:opacity .3s;">
+        <div style="display:flex;align-items:center;gap:9px;">
+          <div class="step-dot" style="background:${bg};border:1.5px solid ${border};color:${color};">${done?"✓":n}</div>
+          <span style="font-size:10px;letter-spacing:1px;text-transform:uppercase;">${label}</span>
+        </div>
+      </div>${sep}`;
+  }).join("");
+}
+
+// ── Mode ──────────────────────────────────────────────────────────────────────
+function switchMode(m) {
+  mode = m;
+  document.getElementById("btn-full").classList.toggle("active", m === "full");
+  document.getElementById("btn-dateOnly").classList.toggle("active", m === "dateOnly");
+  document.getElementById("full-section").style.display = m === "full" ? "block" : "none";
+  document.getElementById("date-section").style.display = m === "dateOnly" ? "block" : "none";
+  document.getElementById("upload-title").textContent = m === "dateOnly" ? "Upload your existing invoice" : "Drop your blank invoice template";
+  document.getElementById("upload-sub").innerHTML = m === "dateOnly"
+    ? "We'll extract the text and only change the dates<br/>.pdf · .docx · .txt"
+    : "Optional — skip to generate from scratch<br/>.pdf · .docx · .txt";
+  document.getElementById("info-box").innerHTML = m === "dateOnly"
+    ? '<strong style="color:#6c63ff;">How it works:</strong> Upload invoice → set new dates → generate. Everything else stays identical.'
+    : '<strong style="color:#6c63ff;">No template?</strong> Skip the upload — we\'ll build a professional invoice from the details below.';
+  document.getElementById("gen-btn").textContent = m === "dateOnly" ? "📅 Update Dates & Download" : "✨ Generate Filled Invoice";
+  hideError(); renderSteps(1);
+}
+
+// ── File handling ─────────────────────────────────────────────────────────────
+async function handleFile(f) {
+  if (!f) return;
+  const ext = f.name.split(".").pop().toLowerCase();
+  if (!["pdf","docx","txt"].includes(ext)) {
+    showError("Please use .pdf, .docx, or .txt"); return;
+  }
+  currentFile = f;
+  document.getElementById("upload-zone").style.display = "none";
+  document.getElementById("file-pill").style.display = "flex";
+  document.getElementById("file-name").textContent = f.name;
+  document.getElementById("file-size").textContent = (f.size/1024).toFixed(1)+" KB · Ready to send";
+  hideError();
+}
+
+function removeFile() {
+  currentFile = null;
+  document.getElementById("file-input").value = "";
+  document.getElementById("upload-zone").style.display = "block";
+  document.getElementById("file-pill").style.display = "none";
+}
+
+// ── Extract text from file client-side ────────────────────────────────────────
+async function extractFileText(file) {
+  const ext = file.name.split(".").pop().toLowerCase();
+
+  if (ext === "txt") {
+    return await file.text();
+  }
+
+  if (ext === "pdf") {
+    const arrayBuffer = await file.arrayBuffer();
+    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+    let text = "";
+    for (let i = 1; i <= pdf.numPages; i++) {
+      const page = await pdf.getPage(i);
+      const content = await page.getTextContent();
+      text += content.items.map(item => item.str).join(" ") + "\n";
+    }
+    return text;
+  }
+
+  if (ext === "docx") {
+    // For DOCX: send raw file as base64, backend handles mammoth
+    // But since we're going serverless without mammoth, we read what we can
+    // Better: prompt user that DOCX will be sent as-is and Gemini will handle it
+    return "[DOCX FILE — extract content and update accordingly]";
+  }
+
+  return "";
+}
+
+// ── Items ─────────────────────────────────────────────────────────────────────
+function addItem() {
+  items.push({ id: itemIdCounter++, desc: "", qty: 1, price: 0 });
+  renderItems(); updateTotals();
+}
+function removeItem(id) {
+  items = items.filter(i => i.id !== id);
+  renderItems(); updateTotals();
+}
+function updateItem(id, key, val) {
+  const item = items.find(i => i.id === id);
+  if (item) { item[key] = val; updateTotals(); }
+}
+
+function renderItems() {
+  // Desktop
+  document.getElementById("items-list").innerHTML = items.map(it => `
+    <div class="item-row">
+      <input class="inp" type="text" placeholder="Service or product description" value="${it.desc}"
+        oninput="updateItem(${it.id},'desc',this.value)" />
+      <input class="inp" type="number" min="0" value="${it.qty}"
+        oninput="updateItem(${it.id},'qty',parseFloat(this.value)||0)" />
+      <input class="inp" type="number" min="0" step="100" value="${it.price}"
+        oninput="updateItem(${it.id},'price',parseFloat(this.value)||0)" />
+      <div style="font-size:13px;font-weight:600;color:#43e97b;text-align:right;padding:9px 4px;" id="row-total-${it.id}">
+        ${fmt(it.qty*it.price)}
+      </div>
+      <button class="rm-btn" onclick="removeItem(${it.id})" style="width:32px;height:32px;font-size:13px;">✕</button>
+    </div>`).join("");
+
+  // Mobile
+  document.getElementById("items-list-mobile").innerHTML = items.map((it, idx) => `
+    <div class="item-card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+        <span style="font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:#6b6b8a;">Item ${idx+1}</span>
+        <button class="rm-btn" onclick="removeItem(${it.id})" style="width:28px;height:28px;font-size:12px;">✕</button>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:10px;">
+        <div class="field"><label>Description</label>
+          <input class="inp" type="text" placeholder="Service or product" value="${it.desc}"
+            oninput="updateItem(${it.id},'desc',this.value)" />
+        </div>
+        <div class="item-g2">
+          <div class="field"><label>Qty</label>
+            <input class="inp" type="number" min="0" value="${it.qty}"
+              oninput="updateItem(${it.id},'qty',parseFloat(this.value)||0)" />
+          </div>
+          <div class="field"><label>Unit Price</label>
+            <input class="inp" type="number" min="0" step="100" value="${it.price}"
+              oninput="updateItem(${it.id},'price',parseFloat(this.value)||0)" />
+          </div>
+        </div>
+        <div style="text-align:right;font-size:14px;font-weight:600;color:#43e97b;">= ${fmt(it.qty*it.price)}</div>
+      </div>
+    </div>`).join("");
+}
+
+function updateTotals() {
+  const subtotal = items.reduce((s,it) => s + it.qty*it.price, 0);
+  const vatRate  = parseFloat(document.getElementById("vat-rate").value) || 0;
+  const discount = parseFloat(document.getElementById("discount").value) || 0;
+  const vatAmt   = subtotal * (vatRate/100);
+  const total    = subtotal + vatAmt - discount;
+  const curr     = document.getElementById("currency").value;
+
+  document.getElementById("t-sub").textContent   = fmt(subtotal);
+  document.getElementById("t-vat").textContent   = fmt(vatAmt);
+  document.getElementById("t-total").textContent = fmt(total);
+  document.getElementById("t-words").textContent = numberToWords(total, curr);
+
+  // Update row totals in desktop view
+  items.forEach(it => {
+    const el = document.getElementById(`row-total-${it.id}`);
+    if (el) el.textContent = fmt(it.qty * it.price);
+  });
+}
+
+// ── Prompts ───────────────────────────────────────────────────────────────────
+function fullPrompt() {
+  const sym      = getSym();
+  const currency = document.getElementById("currency").value;
+  const subtotal = items.reduce((s,it) => s + it.qty*it.price, 0);
+  const vatRate  = parseFloat(document.getElementById("vat-rate").value) || 0;
+  const discount = parseFloat(document.getElementById("discount").value) || 0;
+  const vatAmt   = subtotal * (vatRate/100);
+  const total    = subtotal + vatAmt - discount;
+
+  const rows = items.filter(i=>i.desc.trim()).map((it,n)=>
+    `${n+1}. ${it.desc} | Qty:${it.qty} | Unit:${fmt(it.price)} | Total:${fmt(it.qty*it.price)}`
+  ).join("\n");
+
+  return `Generate a complete professional invoice as a single self-contained HTML page.
+
+SELLER: ${v("s-name")||"N/A"} | ${v("s-addr")} | ${v("s-phone")} | ${v("s-email")}
+BUYER:  ${v("b-name")||"N/A"} | ${v("b-addr")} | ${v("b-email")} | ${v("b-phone")}
+INVOICE #: ${v("inv-num")} | DATE: ${v("inv-date")} | DUE: ${v("inv-due")} | CURRENCY: ${currency}
+
+LINE ITEMS:
+${rows||"No items"}
+
+SUBTOTAL: ${fmt(subtotal)} | VAT ${vatRate}%: ${fmt(vatAmt)} | DISCOUNT: ${fmt(discount)} | TOTAL: ${fmt(total)}
+AMOUNT IN WORDS: ${numberToWords(total, currency)}
+
+PAYMENT: ${v("p-bank")||"N/A"} | Acct: ${v("p-acct")||"N/A"} | Name: ${v("p-aname")||"N/A"} | SWIFT: ${v("p-swift")||"N/A"}
+NOTES: ${v("notes")||"Payment due within 30 days. Thank you for your business."}
+
+Design: white background, #1e40af blue accents, clean professional layout, print-ready, Google Font, fully inline CSS.
+Output ONLY raw HTML starting with <!DOCTYPE html>. Zero markdown. Zero explanation.`;
+}
+
+function datePrompt() {
+  return `Update ONLY the dates in this existing invoice and return a complete filled HTML invoice.
+NEW INVOICE DATE: ${v("new-date")}
+NEW DUE DATE: ${v("new-due")}
+Keep ALL other details (seller, buyer, amounts, items, invoice number) exactly the same.
+Output ONLY raw HTML starting with <!DOCTYPE html>. Zero markdown.`;
+}
+
+function v(id) { return (document.getElementById(id)||{}).value || ""; }
+
+// ── Generate ──────────────────────────────────────────────────────────────────
+async function generate() {
+  hideError();
+  document.getElementById("form-section").style.display = "none";
+  document.getElementById("loading-section").style.display = "flex";
+  document.getElementById("loading-text").textContent = mode === "dateOnly" ? "Swapping dates…" : "Filling your invoice…";
+
+  try {
+    let fileText = "";
+    if (currentFile) {
+      fileText = await extractFileText(currentFile);
+    }
+
+    const prompt = mode === "dateOnly" ? datePrompt() : fullPrompt();
+
+    const res = await fetch("/api/generate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ prompt, fileText }),
+    });
+
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Server error");
+    if (!data.html) throw new Error("No HTML returned. Please try again.");
+
+    const blob = new Blob([data.html], { type: "text/html" });
+    const url  = URL.createObjectURL(blob);
+    document.getElementById("dl-link").href     = url;
+    document.getElementById("dl-link").download = `invoice-${v("inv-num")||"filled"}.html`;
+
+    document.getElementById("loading-section").style.display = "none";
+    document.getElementById("result-section").style.display  = "block";
+    renderSteps(3);
+  } catch(err) {
+    document.getElementById("loading-section").style.display = "none";
+    document.getElementById("form-section").style.display    = "block";
+    showError(err.message || "Something went wrong. Please try again.");
+  }
+}
+
+function resetAll() {
+  document.getElementById("result-section").style.display = "none";
+  document.getElementById("form-section").style.display   = "block";
+  renderSteps(1); hideError();
+}
+
+function showError(msg) {
+  document.getElementById("error-box").style.display = "flex";
+  document.getElementById("error-msg").textContent   = msg;
+}
+function hideError() {
+  document.getElementById("error-box").style.display = "none";
+}
+</script>
+
+</body>
+</html>
