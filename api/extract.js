@@ -1,13 +1,100 @@
-export default async function handler(req, res) {
-  if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
+import formidable from "formidable";
+import fs from "fs";
+import pdfParse from "pdf-parse";
 
-  const { fileText } = req.body;
-  if (!fileText) return res.status(400).json({ error: "No file text provided" });
+export const config = {
+  api: {
+    bodyParser: false,
+  },
+};
+
+export default async function handler(req, res) {
+  if (req.method !== "POST") {
+    return res.status(405).json({ error: "Method not allowed" });
+  }
 
   const GROQ_API_KEY = process.env.GROQ_API_KEY;
-  if (!GROQ_API_KEY) return res.status(500).json({ error: "Groq API key not configured" });
+  const OCR_SPACE_API_KEY = process.env.OCR_SPACE_API_KEY;
 
-  const prompt = `You are an invoice data extractor. Extract all invoice fields from the text below and return ONLY a valid JSON object. No explanation, no markdown, no code fences. Just raw JSON.
+  if (!GROQ_API_KEY) {
+    return res.status(500).json({ error: "Groq API key not configured" });
+  }
+  if (!OCR_SPACE_API_KEY) {
+    return res.status(500).json({ error: "OCR.space API key not configured" });
+  }
+
+  try {
+    const form = formidable({
+      keepExtensions: true,
+      maxFileSize: 10 * 1024 * 1024,
+    });
+
+    const { files } = await new Promise((resolve, reject) => {
+      form.parse(req, (err, fields, files) => {
+        if (err) reject(err);
+        resolve({ fields, files });
+      });
+    });
+
+    const file = files.file?.[0] || files.file;
+    if (!file) {
+      return res.status(400).json({ error: "No file uploaded" });
+    }
+
+    const fileBuffer = await fs.promises.readFile(file.filepath);
+    const fileType = file.mimetype || "";
+    const fileExt = file.originalFilename?.split(".").pop()?.toLowerCase() || "";
+
+    console.log(`Processing file: ${file.originalFilename} (${fileType}, ${fileBuffer.length} bytes)`);
+
+    let extractedText = "";
+
+    // ---------- TEXT FILE ----------
+    if (fileType.includes("text") || fileExt === "txt") {
+      extractedText = fileBuffer.toString("utf-8");
+      console.log("Text file loaded, length:", extractedText.length);
+    }
+    // ---------- PDF ----------
+    else if (fileType.includes("pdf") || fileExt === "pdf") {
+      // First try to extract text with pdf-parse
+      try {
+        const pdfData = await pdfParse(fileBuffer);
+        extractedText = pdfData.text;
+        console.log("pdf-parse extracted text length:", extractedText.length);
+      } catch (e) {
+        console.warn("pdf-parse failed:", e.message);
+        extractedText = "";
+      }
+
+      // If extracted text is too short, fallback to OCR.space
+      if (!extractedText || extractedText.trim().length < 50) {
+        console.log("PDF text too short, using OCR.space");
+        extractedText = await ocrSpace(fileBuffer, fileExt, fileType);
+        console.log("OCR.space extracted text length:", extractedText.length);
+      }
+    }
+    // ---------- IMAGE ----------
+    else if (fileType.includes("image") || ["jpg", "jpeg", "png"].includes(fileExt)) {
+      console.log("Processing image with OCR.space");
+      extractedText = await ocrSpace(fileBuffer, fileExt, fileType);
+      console.log("OCR.space extracted text length:", extractedText.length);
+    }
+    // ---------- UNSUPPORTED ----------
+    else {
+      return res.status(400).json({ error: "Unsupported file type. Please upload PDF, image, or text files." });
+    }
+
+    // Clean extracted text
+    extractedText = extractedText.replace(/\s+/g, " ").trim();
+
+    if (!extractedText) {
+      return res.status(400).json({ error: "No text could be extracted from the uploaded file" });
+    }
+
+    console.log("Final extracted text (first 500 chars):", extractedText.slice(0, 500));
+
+    // ---------- SEND TO GROQ ----------
+    const prompt = `You are an invoice data extractor. Extract all invoice fields from the text below and return ONLY a valid JSON object. No explanation, no markdown, no code fences. Just raw JSON.
 
 Extract these fields (use empty string "" if not found):
 {
@@ -47,21 +134,23 @@ For items: extract every line item you can find.
 For description: extract any overall invoice description or purpose if present.
 
 INVOICE TEXT:
-${fileText}`;
+${extractedText}`;
 
-  try {
     const groqRes = await fetch("https://api.groq.com/openai/v1/chat/completions", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${GROQ_API_KEY}`,
+        Authorization: `Bearer ${GROQ_API_KEY}`,
       },
       body: JSON.stringify({
         model: "llama-3.3-70b-versatile",
         max_tokens: 4096,
         temperature: 0.1,
         messages: [
-          { role: "system", content: "You are a precise invoice data extractor. Always return only valid JSON with no extra text." },
+          {
+            role: "system",
+            content: "You are a precise invoice data extractor. Always return only valid JSON with no extra text.",
+          },
           { role: "user", content: prompt },
         ],
       }),
@@ -79,6 +168,59 @@ ${fileText}`;
     const fields = JSON.parse(raw);
     return res.status(200).json({ fields });
   } catch (err) {
-    return res.status(500).json({ error: err.message });
+    console.error("Handler error:", err);
+    return res.status(500).json({ error: err.message || "Internal server error" });
   }
+}
+
+// ------------------------------------------------------------------
+//  OCR.space API with base64 for images and file upload for PDFs
+// ------------------------------------------------------------------
+async function ocrSpace(fileBuffer, fileExt, mimeType) {
+  const formData = new FormData();
+
+  // For images, use base64 (more reliable in Node.js)
+  if (["jpg", "jpeg", "png"].includes(fileExt)) {
+    const base64 = fileBuffer.toString("base64");
+    const mime = fileExt === "jpg" ? "image/jpeg" : `image/${fileExt}`;
+    formData.append("base64Image", `data:${mime};base64,${base64}`);
+    console.log("Sending image via base64");
+  } else {
+    // For PDFs, use file upload
+    let contentType = mimeType;
+    if (!contentType) {
+      if (fileExt === "pdf") contentType = "application/pdf";
+      else contentType = "application/octet-stream";
+    }
+    const blob = new Blob([fileBuffer], { type: contentType });
+    formData.append("file", blob, `invoice.${fileExt}`);
+    console.log("Sending PDF via file upload");
+  }
+
+  formData.append("apikey", process.env.OCR_SPACE_API_KEY);
+  formData.append("language", "eng");
+  formData.append("isOverlayRequired", "false");
+  formData.append("OCREngine", "2");
+
+  console.log("Calling OCR.space...");
+  const response = await fetch("https://api.ocr.space/parse/image", {
+    method: "POST",
+    body: formData,
+  });
+
+  const result = await response.json();
+  console.log("OCR.space status:", result.IsErroredOnProcessing ? "error" : "success");
+  if (result.ErrorMessage) {
+    console.error("OCR.space error details:", result.ErrorMessage);
+  }
+
+  if (result.IsErroredOnProcessing) {
+    throw new Error(`OCR.space error: ${result.ErrorMessage?.[0] || "Unknown error"}`);
+  }
+
+  const parsedText = result.ParsedResults?.map(r => r.ParsedText).join("\n") || "";
+  if (!parsedText) {
+    console.warn("OCR.space returned empty text. Full response:", JSON.stringify(result, null, 2));
+  }
+  return parsedText;
 }
