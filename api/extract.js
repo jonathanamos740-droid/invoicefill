@@ -61,7 +61,11 @@ export default async function handler(req, res) {
       fileType.includes("image") || ["jpg", "jpeg", "png"].includes(fileExt)
     ) {
       console.log("Processing file with OCR.space");
-      extractedText = await ocrSpace(fileBuffer, fileExt, fileType);
+      const ocrResult = await ocrSpace(fileBuffer, fileExt, fileType);
+      if (!ocrResult.success) {
+        return res.status(400).json({ error: ocrResult.error });
+      }
+      extractedText = ocrResult.text;
       console.log("OCR.space extracted text length:", extractedText.length);
     }
     // ---------- UNSUPPORTED ----------
@@ -161,11 +165,10 @@ ${extractedText}`;
 async function ocrSpace(fileBuffer, fileExt, mimeType) {
   const formData = new FormData();
 
-  // For images, use base64 (raw string, not data URL)
+  // For images, use raw base64 (no data URL)
   if (["jpg", "jpeg", "png"].includes(fileExt)) {
     const base64 = fileBuffer.toString("base64");
     formData.append("base64Image", base64);
-    console.log("Sending image via raw base64");
   } else {
     // For PDFs, use file upload
     let contentType = mimeType;
@@ -177,7 +180,6 @@ async function ocrSpace(fileBuffer, fileExt, mimeType) {
       filename: `invoice.${fileExt}`,
       contentType,
     });
-    console.log("Sending PDF via file upload");
   }
 
   formData.append("apikey", process.env.OCR_SPACE_API_KEY);
@@ -193,18 +195,17 @@ async function ocrSpace(fileBuffer, fileExt, mimeType) {
   });
 
   const result = await response.json();
-  console.log("OCR.space status:", result.IsErroredOnProcessing ? "error" : "success");
-  if (result.ErrorMessage) {
-    console.error("OCR.space error details:", result.ErrorMessage);
-  }
+  console.log("OCR.space response:", JSON.stringify(result, null, 2));
 
   if (result.IsErroredOnProcessing) {
-    throw new Error(`OCR.space error: ${result.ErrorMessage?.[0] || "Unknown error"}`);
+    const errorMsg = result.ErrorMessage?.[0] || "Unknown OCR error";
+    return { success: false, error: `OCR.space error: ${errorMsg}` };
   }
 
   const parsedText = result.ParsedResults?.map(r => r.ParsedText).join("\n") || "";
   if (!parsedText) {
-    console.warn("OCR.space returned empty text. Full response:", JSON.stringify(result, null, 2));
+    return { success: false, error: "OCR.space returned empty text. The file may be unreadable or unsupported." };
   }
-  return parsedText;
+
+  return { success: true, text: parsedText };
 }
