@@ -1,5 +1,7 @@
 import formidable from "formidable";
 import fs from "fs";
+import FormData from "form-data";
+import fetch from "node-fetch";
 
 export const config = {
   api: {
@@ -156,18 +158,14 @@ ${extractedText}`;
   }
 }
 
-// ------------------------------------------------------------------
-//  OCR.space API (works for both images and PDFs)
-// ------------------------------------------------------------------
 async function ocrSpace(fileBuffer, fileExt, mimeType) {
   const formData = new FormData();
 
-  // For images, use base64 (more reliable in Node.js)
+  // For images, use base64 (raw string, not data URL)
   if (["jpg", "jpeg", "png"].includes(fileExt)) {
     const base64 = fileBuffer.toString("base64");
-    const mime = fileExt === "jpg" ? "image/jpeg" : `image/${fileExt}`;
-    formData.append("base64Image", `data:${mime};base64,${base64}`);
-    console.log("Sending image via base64");
+    formData.append("base64Image", base64);
+    console.log("Sending image via raw base64");
   } else {
     // For PDFs, use file upload
     let contentType = mimeType;
@@ -175,8 +173,10 @@ async function ocrSpace(fileBuffer, fileExt, mimeType) {
       if (fileExt === "pdf") contentType = "application/pdf";
       else contentType = "application/octet-stream";
     }
-    const blob = new Blob([fileBuffer], { type: contentType });
-    formData.append("file", blob, `invoice.${fileExt}`);
+    formData.append("file", fileBuffer, {
+      filename: `invoice.${fileExt}`,
+      contentType,
+    });
     console.log("Sending PDF via file upload");
   }
 
@@ -189,6 +189,7 @@ async function ocrSpace(fileBuffer, fileExt, mimeType) {
   const response = await fetch("https://api.ocr.space/parse/image", {
     method: "POST",
     body: formData,
+    headers: formData.getHeaders(),
   });
 
   const result = await response.json();
